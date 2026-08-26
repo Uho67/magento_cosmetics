@@ -1,0 +1,42 @@
+# /etc/nginx/sites-enabled/yourdomain.com.conf
+#
+# One file per domain/store. Copy and customise for each Magento website.
+# All domains proxy to the same Docker Varnish on 127.0.0.1:6081.
+#
+# Magento multi-store routing:
+#   Varnish and Docker nginx receive the Host header unchanged, so Magento
+#   matches the domain to the correct website/store via its base URL config
+#   (Stores → Configuration → Web → Base URLs).
+#   If you need to force a store code, add to the location block:
+#     proxy_set_header X-Magento-Store-Code "en";
+#   and handle it in Magento's index.php or a store switcher module.
+
+# ── HTTP → HTTPS redirect ────────────────────────────────────────────────────
+server {
+    listen      80;
+    listen      [::]:80;
+    server_name yourdomain.com www.yourdomain.com;
+
+    return 301 https://$host$request_uri;
+}
+
+# ── HTTPS ────────────────────────────────────────────────────────────────────
+server {
+    listen      443 ssl;
+    listen      [::]:443 ssl;
+    server_name yourdomain.com www.yourdomain.com;
+
+    # ── SSL certificates (replace with your actual paths) ───────────────────
+    ssl_certificate     /etc/ssl/certs/yourdomain.com.crt;
+    ssl_certificate_key /etc/ssl/private/yourdomain.com.key;
+    include             snippets/ssl-params.snippet;
+
+    # ── Logging ─────────────────────────────────────────────────────────────
+    access_log  /var/log/nginx/yourdomain.com.access.log;
+    error_log   /var/log/nginx/yourdomain.com.error.log;
+
+    # ── Proxy to Docker Varnish ──────────────────────────────────────────────
+    location / {
+        include snippets/magento-proxy.snippet;
+    }
+}

@@ -4,14 +4,17 @@
 
 ```
 Browser
-  └─▶ Traefik :443 (TLS termination, Let's Encrypt)
-        └─▶ Varnish :6081 (full-page HTTP cache)
-              └─▶ Nginx :80 (static files + FastCGI proxy)
-                    └─▶ PHP-FPM :9000 (Magento application)
+  └─▶ Server nginx :443  (host machine, outside Docker — SSL termination, your certs)
+        └─▶ Docker Varnish  127.0.0.1:6081  (full-page HTTP cache)
+              └─▶ Docker Nginx :80  (static files + FastCGI proxy)
+                    └─▶ Docker PHP-FPM :9000  (Magento application)
 
-All other services (MariaDB, OpenSearch, Valkey, RabbitMQ) are on an
-internal Docker network with no public exposure.
+MariaDB, OpenSearch, Valkey, RabbitMQ — internal Docker network, no public ports.
 ```
+
+**Multi-store / multi-domain:** each domain gets its own `server {}` block in the
+host nginx, all proxying to the same `127.0.0.1:6081`. Magento routes by `Host`
+header to the correct website/store based on its Base URL configuration.
 
 ## OS assumption: Ubuntu 24.04 LTS
 
@@ -19,10 +22,14 @@ internal Docker network with no public exposure.
 
 ## Part 1 — First-time server provisioning
 
-### 1.1 Install Docker
+### 1.1 Install nginx + Docker
 
 ```bash
-# Remove old versions
+# nginx (host-level reverse proxy)
+apt-get update
+apt-get install -y nginx
+
+# Remove old Docker versions
 apt-get remove -y docker docker-engine docker.io containerd runc 2>/dev/null || true
 
 # Install Docker Engine
@@ -30,8 +37,9 @@ curl -fsSL https://get.docker.com | sh
 systemctl enable --now docker
 
 # Verify
+nginx -v
 docker --version
-docker compose version    # needs 2.x (plugin, not legacy docker-compose)
+docker compose version    # must be 2.x (Compose plugin, not legacy docker-compose)
 ```
 
 ### 1.2 Configure firewall
@@ -40,13 +48,12 @@ docker compose version    # needs 2.x (plugin, not legacy docker-compose)
 ufw allow OpenSSH
 ufw allow 80/tcp
 ufw allow 443/tcp
-# Port 8080 (Traefik dashboard) should NOT be opened; use SSH tunnel instead:
-#   ssh -L 8080:localhost:8080 user@your-vps
 ufw enable
 ufw status
+# Port 6081 (Varnish) is NOT opened — it binds to 127.0.0.1 only.
 ```
 
-### 1.3 Create deploy user (optional but recommended)
+### 1.3 Create deploy user (recommended)
 
 ```bash
 adduser deploy
@@ -54,30 +61,57 @@ usermod -aG docker deploy
 # Add your SSH public key to /home/deploy/.ssh/authorized_keys
 ```
 
-### 1.4 Clone the repository
+### 1.4 Install SSL certificates
+
+Place your certificate files on the server. Example paths:
+```
+/etc/ssl/certs/yourdomain.com.crt
+/etc/ssl/private/yourdomain.com.key
+```
+
+If using Certbot:
+```bash
+apt-get install -y certbot python3-certbot-nginx
+certbot --nginx -d yourdomain.com -d www.yourdomain.com
+```
+
+### 1.5 Configure host nginx
+
+```bash
+# Install shared snippets (TLS settings + proxy block)
+cp /srv/legal/deploy/nginx-host/snippets/*.snippet /etc/nginx/snippets/
+
+# Create a vhost for each domain (copy and edit the example)
+cp /srv/legal/deploy/nginx-host/sites-enabled/store.conf.example \
+   /etc/nginx/sites-enabled/yourdomain.com.conf
+
+# Edit: set server_name and ssl_certificate paths
+nano /etc/nginx/sites-enabled/yourdomain.com.conf
+
+# Disable the default vhost, test, reload
+rm -f /etc/nginx/sites-enabled/default
+nginx -t && systemctl reload nginx
+```
+
+> See `deploy/nginx-host/` for the full file layout and multi-domain instructions.
+
+### 1.6 Clone the repository
 
 ```bash
 git clone <repo-url> /srv/legal
 cd /srv/legal
 ```
 
-### 1.5 Create secrets files
+### 1.7 Create secrets files
 
 ```bash
-# Magento Marketplace credentials (for Composer)
+# Magento Marketplace credentials (for Composer --secret during image build)
 cp auth.json.example auth.json
-# Edit auth.json with your public/private Marketplace keys
+nano auth.json   # fill in public/private Marketplace keys
 
 # Production environment secrets
 cp .env.prod.example .env.prod
-# Edit .env.prod with real passwords, domain, etc.
-```
-
-### 1.6 Edit Traefik config with your email
-
-```bash
-# Replace admin@example.com with a real address for Let's Encrypt notifications
-nano deploy/traefik/traefik.yml
+nano .env.prod   # fill in DB passwords, RabbitMQ creds, domain, etc.
 ```
 
 ---
@@ -89,7 +123,6 @@ nano deploy/traefik/traefik.yml
 ```bash
 cd /srv/legal
 
-# Enable BuildKit (needed for --secret)
 export DOCKER_BUILDKIT=1
 
 docker build \
@@ -109,13 +142,13 @@ docker build \
   deploy/varnish/
 ```
 
-### 2.2 Start infrastructure services first
+### 2.2 Start infrastructure services
 
 ```bash
 docker compose -f deploy/docker-compose.prod.yml --env-file .env.prod \
-  up -d traefik db opensearch redis rabbitmq
+  up -d db opensearch redis rabbitmq
 
-# Wait for DB and OpenSearch to be healthy
+# Wait for healthchecks to pass (~60s for OpenSearch)
 docker compose -f deploy/docker-compose.prod.yml --env-file .env.prod \
   ps --format "table {{.Name}}\t{{.Status}}"
 ```
@@ -123,7 +156,7 @@ docker compose -f deploy/docker-compose.prod.yml --env-file .env.prod \
 ### 2.3 Run setup:install (first deploy only)
 
 ```bash
-source .env.prod    # loads variables into shell
+source .env.prod
 
 docker compose -f deploy/docker-compose.prod.yml --env-file .env.prod \
   run --rm php-fpm php bin/magento setup:install \
@@ -164,22 +197,23 @@ docker compose -f deploy/docker-compose.prod.yml --env-file .env.prod \
     --use-rewrites="1" \
     --use-secure="1" \
     --use-secure-admin="1"
-
-# After install, copy the generated crypt key into .env.prod for safekeeping
-# (find it in app/etc/env.php inside the container)
-docker compose -f deploy/docker-compose.prod.yml --env-file .env.prod \
-  run --rm php-fpm grep crypt_key app/etc/env.php
 ```
 
-> **Back up `app/etc/env.php`** — it contains the crypt key. If lost, all encrypted data
-> (payment credentials, API tokens) is unrecoverable.
+After install, save the generated crypt key somewhere safe:
+```bash
+docker compose -f deploy/docker-compose.prod.yml --env-file .env.prod \
+  run --rm php-fpm grep -A2 "crypt" app/etc/env.php
+```
+
+> **Back up `app/etc/env.php`** — it contains the crypt key. If lost, all
+> encrypted data (payment credentials, API tokens) is unrecoverable.
 
 ### 2.4 Start all services
 
 ```bash
 docker compose -f deploy/docker-compose.prod.yml --env-file .env.prod up -d
 
-# Confirm everything is running
+# Confirm all 7 services are running
 docker compose -f deploy/docker-compose.prod.yml --env-file .env.prod ps
 ```
 
@@ -187,55 +221,45 @@ docker compose -f deploy/docker-compose.prod.yml --env-file .env.prod ps
 
 ## Part 3 — Routine code deploys
 
-Run this sequence for every code change. Steps are ordered to minimise downtime.
-
 ```bash
 cd /srv/legal
 
 # 1. Pull latest code
 git pull origin main
 
-# 2. Rebuild images (only changed layers are rebuilt)
+# 2. Rebuild only changed images
 export DOCKER_BUILDKIT=1
 docker build --secret id=composer_auth,src=auth.json \
-  --target php-runtime -t legal/php:latest -f deploy/Dockerfile .
+  --target php-runtime  -t legal/php:latest   -f deploy/Dockerfile .
 docker build --secret id=composer_auth,src=auth.json \
   --target nginx-runtime -t legal/nginx:latest -f deploy/Dockerfile .
 
-# 3. Run database migrations (setup:upgrade) before switching traffic
+# 3. Run DB migrations before switching traffic
 docker compose -f deploy/docker-compose.prod.yml --env-file .env.prod \
   run --rm php-fpm php bin/magento setup:upgrade --keep-generated
 
-# 4. Recreate application containers with new images
+# 4. Swap containers (zero-downtime: Varnish keeps serving cached pages during swap)
 docker compose -f deploy/docker-compose.prod.yml --env-file .env.prod \
   up -d --no-deps --force-recreate php-fpm nginx cron
 
-# 5. Flush Magento cache + invalidate Varnish
+# 5. Flush caches
 docker compose -f deploy/docker-compose.prod.yml --env-file .env.prod \
   exec php-fpm php bin/magento cache:flush
 ```
-
-> `--keep-generated` skips regenerating DI/interceptors during upgrade if you
-> already compiled them in the image. Remove it if you have new plugins.
 
 ---
 
 ## Part 4 — Rollback
 
 ```bash
-# 1. Identify the previous image tag (use date-tagged images in CI/CD)
-docker images legal/php
-
-# 2. Re-tag the previous image as latest
-docker tag legal/php:<previous-tag> legal/php:latest
+# Re-tag a previous image as latest
+docker tag legal/php:<previous-tag>   legal/php:latest
 docker tag legal/nginx:<previous-tag> legal/nginx:latest
 
-# 3. Recreate containers
+# Recreate containers from old images
 docker compose -f deploy/docker-compose.prod.yml --env-file .env.prod \
   up -d --no-deps --force-recreate php-fpm nginx cron
 
-# 4. Reverse any DB migrations if needed (manual — Magento has no auto-rollback)
-# 5. Flush cache
 docker compose -f deploy/docker-compose.prod.yml --env-file .env.prod \
   exec php-fpm php bin/magento cache:flush
 ```
@@ -245,61 +269,65 @@ docker compose -f deploy/docker-compose.prod.yml --env-file .env.prod \
 ## Part 5 — Useful operational commands
 
 ```bash
-# Alias for brevity
+# Shorthand alias (add to ~/.bashrc on the server)
 alias dc='docker compose -f /srv/legal/deploy/docker-compose.prod.yml --env-file /srv/legal/.env.prod'
 
-# Logs
-dc logs -f php-fpm
-dc logs -f nginx
-dc logs -f varnish
-dc logs -f traefik
-
-# Shell into php-fpm
-dc exec php-fpm bash
-
-# Reindex
-dc exec php-fpm php bin/magento indexer:reindex
-
-# Cache status
-dc exec php-fpm php bin/magento cache:status
-
-# Varnish stats
-dc exec varnish varnishstat -1
-
-# MariaDB CLI
+dc logs -f php-fpm          # stream application logs
+dc logs -f nginx            # stream nginx access/error logs
+dc logs -f varnish          # stream varnish logs
+dc exec php-fpm bash        # shell into PHP container
 dc exec db mariadb -u magento -p magento
 
-# RabbitMQ queue status
+dc exec php-fpm php bin/magento indexer:reindex
+dc exec php-fpm php bin/magento cache:status
+dc exec varnish varnishstat -1
 dc exec rabbitmq rabbitmqctl list_queues
+
+# View host nginx logs
+tail -f /var/log/nginx/yourdomain.com.access.log
+tail -f /var/log/nginx/yourdomain.com.error.log
 ```
 
 ---
 
-## Part 6 — Notes on MarkShust_DisableTwoFactorAuth
+## Part 6 — Multi-store / multi-domain setup
 
-This module is a **`--dev` Composer dependency**. The production Dockerfile runs
-`composer install --no-dev`, so its PHP classes are never present on the server.
+For each additional store/website:
 
-Additionally, the builder stage explicitly disables it:
+1. Add a new `server {}` block in `/etc/nginx/sites-enabled/` (copy `store.conf.example`).
+2. Point the new domain's DNS A record to the VPS IP.
+3. Install the SSL cert for the new domain.
+4. In Magento admin: Stores → All Stores → create the new website/store/store view.
+5. Set the Base URLs for the new store (Stores → Config → Web → Base URLs).
+6. All domains proxy to the same `127.0.0.1:6081` — Magento routes by `Host` header.
+
+---
+
+## Part 7 — MarkShust_DisableTwoFactorAuth in production
+
+This module is a `--dev` Composer dependency. The production Dockerfile runs
+`composer install --no-dev` so its PHP classes are never present on the server.
+The builder stage also explicitly disables it:
+
 ```dockerfile
 RUN php bin/magento module:disable MarkShust_DisableTwoFactorAuth --no-backup 2>/dev/null || true
 ```
 
-This means `app/etc/config.php` (which is committed) will have the module listed
-as `0 => disabled` on production, and `1 => enabled` in local dev — which is correct.
+Result: 2FA is **active** in production and **disabled** only in local dev.
 
 ---
 
-## Part 7 — Environment parity checklist
+## Part 8 — Environment parity
 
-| Component | Local (Warden) | Production |
-|-----------|---------------|------------|
-| PHP | 8.4-magento2 (wardenenv) | 8.4-magento2 (wardenenv) |
+| Component | Local (Warden) | Production (VPS) |
+|-----------|---------------|------------------|
+| PHP | wardenenv/php-fpm:8.4-magento2 | wardenenv/php-fpm:8.4-magento2 |
 | MariaDB | 11.4 | 11.4 |
 | OpenSearch | 2.19 | 2.19 |
 | Cache/session | Valkey 8 | Valkey 8 |
 | HTTP cache | Varnish 7.7 | Varnish 7.7 |
 | Queue | RabbitMQ 3.13 | RabbitMQ 3.13 |
+| TLS | Warden mkcert | Server nginx + your certs |
 | Magento mode | developer | production |
-| OPcache timestamps | validate on every request | disabled (max performance) |
-| 2FA | disabled (MarkShust module) | enabled (module not present) |
+| OPcache | validate every request | disabled (max perf) |
+| 2FA | disabled | enabled |

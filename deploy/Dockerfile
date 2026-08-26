@@ -35,8 +35,17 @@ RUN --mount=type=secret,id=composer_auth,target=/root/.composer/auth.json \
 # Copy full application source
 COPY --chown=www-data:www-data . .
 
-# Disable the dev-only 2FA disabler (it's a --dev dep so code exists, but must not be enabled)
-RUN php bin/magento module:disable MarkShust_DisableTwoFactorAuth --no-backup 2>/dev/null || true
+# config.php (committed) has Magento_TwoFactorAuth=0 because the local dev
+# MarkShust_DisableTwoFactorAuth module wrote that state. Re-enable 2FA for
+# production, then disable the dev-only helper (its code is absent anyway since
+# we ran composer install --no-dev, but this keeps config.php clean).
+RUN php bin/magento module:enable \
+      Magento_TwoFactorAuth \
+      Magento_AdminAdobeImsTwoFactorAuth \
+      --no-backup 2>/dev/null || true && \
+    php bin/magento module:disable \
+      MarkShust_DisableTwoFactorAuth \
+      --no-backup 2>/dev/null || true
 
 # Compile DI and deploy static content (en_US only; add more locales as needed)
 RUN php bin/magento setup:di:compile && \

@@ -1,34 +1,19 @@
 # Production Docker Compose — Magento Open Source 2.4.9
-# Usage: docker compose -f deploy/docker-compose.prod.yml --env-file .env.prod up -d
 #
-# All service-to-service traffic stays on the 'internal' network.
-# Only Traefik sits on the 'public' network (ports 80/443 exposed).
+# SSL termination is handled by the server-level nginx (outside Docker).
+# Varnish is the only service exposed — bound to localhost:6081 so the
+# host nginx can proxy to it. Everything else is on an isolated internal network.
+#
+# Usage (from repo root):
+#   docker compose -f deploy/docker-compose.prod.yml --env-file .env.prod up -d
 
 name: legal
 
 services:
 
   ##############################################################################
-  # Traefik — TLS termination + Let's Encrypt
-  ##############################################################################
-  traefik:
-    image: traefik:v3.1
-    restart: always
-    ports:
-      - "80:80"
-      - "443:443"
-      - "127.0.0.1:8080:8080"    # dashboard — loopback only, SSH tunnel to access
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
-      - traefik-certs:/letsencrypt
-    networks:
-      - public
-    environment:
-      - TZ=Europe/Kyiv
-
-  ##############################################################################
   # Varnish — full-page HTTP cache
+  # Exposed on 127.0.0.1:6081 only — reachable by the host nginx, not the internet.
   ##############################################################################
   varnish:
     build:
@@ -37,17 +22,10 @@ services:
     restart: always
     depends_on:
       - nginx
+    ports:
+      - "127.0.0.1:6081:6081"
     networks:
-      - public
       - internal
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=legal_public"
-      # HTTPS router
-      - "traefik.http.routers.magento.rule=Host(`${DOMAIN}`)"
-      - "traefik.http.routers.magento.entrypoints=websecure"
-      - "traefik.http.routers.magento.tls.certresolver=letsencrypt"
-      - "traefik.http.services.magento.loadbalancer.server.port=6081"
 
   ##############################################################################
   # Nginx — static files + FastCGI proxy to php-fpm
@@ -92,10 +70,9 @@ services:
       - logs:/var/www/html/var/log
     environment:
       - MAGE_MODE=production
-      - PHP_MEMORY_LIMIT=2G
 
   ##############################################################################
-  # Cron — Magento scheduled tasks
+  # Cron — Magento scheduled tasks (runs bin/magento cron:run every 60s)
   ##############################################################################
   cron:
     build:
@@ -175,7 +152,7 @@ services:
       start_period: 60s
 
   ##############################################################################
-  # Valkey 8 (Redis-compatible cache + session store)
+  # Valkey 8 (Redis-compatible — cache, FPC, sessions)
   ##############################################################################
   redis:
     image: valkey/valkey:8-alpine
@@ -187,7 +164,7 @@ services:
     command: valkey-server --save 60 1 --loglevel warning
 
   ##############################################################################
-  # RabbitMQ 3.13 — message queue
+  # RabbitMQ 3.13 — async message queue
   ##############################################################################
   rabbitmq:
     image: rabbitmq:3.13-alpine
@@ -210,19 +187,16 @@ services:
 # Networks
 ##############################################################################
 networks:
-  public:
-    name: legal_public
   internal:
     name: legal_internal
-    internal: true     # no outbound internet from app containers
+    internal: true    # no outbound internet access from app containers
 
 ##############################################################################
 # Volumes
 ##############################################################################
 volumes:
-  traefik-certs:
-  media:            # pub/media — persists user-uploaded files across deploys
-  logs:             # var/log  — persists logs across container restarts
+  media:          # pub/media — user-uploaded files, persists across deploys
+  logs:           # var/log  — persists across container restarts
   dbdata:
   osdata:
   redisdata:
