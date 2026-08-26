@@ -42,16 +42,12 @@ cp auth.json.example auth.json
 
 ```bash
 warden env up
+warden env ps     # all 8 services should show Running
 ```
 
-Verify all containers are healthy:
-
-```bash
-warden env ps
-```
-
-Expected services: `php-fpm`, `php-debug`, `nginx`, `db` (MariaDB 11.4),
-`opensearch` (2.19), `redis` (Valkey 8), `varnish`, `rabbitmq`.
+Expected services: `php-fpm` (PHP 8.4), `php-debug` (PHP 8.4 + Xdebug 3),
+`nginx`, `db` (MariaDB 11.4), `opensearch` (2.19), `redis` (Valkey 8),
+`varnish`, `rabbitmq`.
 
 ---
 
@@ -61,33 +57,41 @@ Expected services: `php-fpm`, `php-debug`, `nginx`, `db` (MariaDB 11.4),
 warden shell
 ```
 
-Inside the container shell:
+Inside the container:
 
 ```bash
-# 1. Download Magento Open Source 2.4.8 into a temp dir and install vendor
+# Install Composer auth credentials globally
+mkdir -p ~/.composer
+cp /var/www/html/auth.json ~/.composer/auth.json
+
+# Download Magento Open Source into a temp dir (vendor already installed)
 composer create-project \
   --repository-url=https://repo.magento.com/ \
   magento/project-community-edition=^2.4.8 \
   /tmp/m2src
 
-# 2. Sync into the web root (preserves .warden/, docs/, etc. already there)
-rsync -a /tmp/m2src/. .
+# Sync into web root (preserves .warden/, docs/, etc.)
+rsync -a --exclude='.warden' --exclude='auth.json*' \
+         --exclude='docs' --exclude='.git' \
+         --exclude='.env' --exclude='.gitignore' \
+         /tmp/m2src/. /var/www/html/
 
-# 3. Add the local-dev-only 2FA disabler as a --dev dependency.
-#    Production runs `composer install --no-dev`, so this module is
-#    never present on the server — no code, no risk.
+# Add 2FA disabler as --dev dependency (excluded from prod via composer install --no-dev)
 composer require --dev markshust/magento2-module-disabletwofactorauth
 
-# 4. Declare sample data packages (updates composer.json; needs vendor present)
+# Declare sample data packages, then install them
 bin/magento sampledata:deploy
-
-# 5. Install the newly declared sample data packages
 composer update
 ```
 
 ---
 
 ## Step 4 — Run setup:install
+
+> **Magento 2.4.9 notes:**
+> - `--page-cache=varnish` was removed; Varnish is now wired via `--http-cache-hosts`
+> - Native `--session-save=valkey` and `--cache-backend=valkey` flags are used
+>   (Magento 2.4.9 has first-class Valkey support)
 
 Still inside `warden shell`:
 
@@ -106,20 +110,19 @@ bin/magento setup:install \
   --opensearch-port="9200" \
   --opensearch-index-prefix="magento2" \
   \
-  --cache-backend="redis" \
-  --cache-backend-redis-server="redis" \
-  --cache-backend-redis-db="0" \
+  --cache-backend="valkey" \
+  --cache-backend-valkey-server="redis" \
+  --cache-backend-valkey-db="0" \
   \
-  --session-save="redis" \
-  --session-save-redis-host="redis" \
-  --session-save-redis-db="2" \
+  --page-cache="valkey" \
+  --page-cache-valkey-server="redis" \
+  --page-cache-valkey-db="1" \
   \
-  --page-cache="varnish" \
-  --page-cache-varnish-access-list="varnish" \
-  --page-cache-varnish-backend="nginx" \
-  --page-cache-varnish-backend-port="80" \
-  --page-cache-varnish-port="6081" \
-  --page-cache-varnish-ttl="604800" \
+  --session-save="valkey" \
+  --session-save-valkey-host="redis" \
+  --session-save-valkey-db="2" \
+  \
+  --http-cache-hosts="varnish:6081" \
   \
   --amqp-host="rabbitmq" \
   --amqp-port="5672" \
@@ -142,29 +145,21 @@ bin/magento setup:install \
   --use-secure-admin="1"
 ```
 
-> These credentials are **local dev only**. Production credentials come from
-> `.env.prod` (gitignored — see `docs/DEPLOY.md`).
-
 ---
 
 ## Step 5 — Enable 2FA disabler, run upgrades, build assets
 
 ```bash
-# Enable the local-only 2FA disabler module.
-# NOTE: this writes to app/etc/config.php. The production Dockerfile
-# explicitly removes this entry before the image is built (see DEPLOY.md).
 bin/magento module:enable MarkShust_DisableTwoFactorAuth
-
-# Apply all pending schema/data scripts (Magento core + sample data + above module)
 bin/magento setup:upgrade
-
 bin/magento setup:di:compile
 bin/magento setup:static-content:deploy -f en_US
 bin/magento indexer:reindex
 bin/magento cache:flush
 ```
 
-Sample data indexing takes 2–5 minutes.
+> **Production note:** The production Dockerfile disables `MarkShust_DisableTwoFactorAuth`
+> after `composer install --no-dev` so it never reaches the server (see `docs/DEPLOY.md`).
 
 ---
 
@@ -174,8 +169,25 @@ Sample data indexing takes 2–5 minutes.
 |------|-----|
 | Storefront | https://legal.test/ |
 | Admin (no 2FA) | https://legal.test/admin — `enrole` / `Enrole_12_nji` |
-| RabbitMQ Management UI | http://rabbitmq.legal.test:15672 — `guest` / `guest` |
+| RabbitMQ UI | http://rabbitmq.legal.test:15672 — `guest` / `guest` |
 | OpenSearch | http://opensearch.legal.test:9200 |
+
+---
+
+## Logs
+
+PHP and Magento logs are bind-mounted to your host:
+
+| Container | Host path | Contents |
+|-----------|-----------|----------|
+| `php-fpm` | `var/log/php-fpm/` | `exception.log`, `system.log`, `php-errors.log` |
+| `php-debug` | `var/log/php-debug/` | same files from Xdebug sessions |
+
+Stream live:
+```bash
+tail -f var/log/php-fpm/exception.log
+tail -f var/log/php-fpm/system.log
+```
 
 ---
 
@@ -185,16 +197,14 @@ Sample data indexing takes 2–5 minutes.
 warden env up                   # start all services
 warden env down                 # stop all services
 warden shell                    # php-fpm container shell
-warden debug                    # php-debug shell (Xdebug enabled, port 9003)
-warden env logs -f              # stream all container logs
-warden env logs -f php-fpm      # php-fpm only
-warden env logs -f db           # MariaDB only
+warden debug                    # php-debug shell (Xdebug port 9003)
+warden env logs -f php-fpm      # stream php-fpm container logs
+warden env logs -f db           # stream MariaDB logs
 ```
 
 ---
 
 ## Xdebug
 
-IDE server name is `legal.test` (set in `.warden/warden-env.yml`).
-Listen on port **9003** in your IDE. Use `warden debug` to open a shell in the
-Xdebug-enabled `php-debug` container.
+IDE server name: `legal.test` (configured in `.warden/warden-env.yml`).
+Listen on port **9003**. Use `warden debug` to open a shell in the Xdebug container.
