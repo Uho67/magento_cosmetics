@@ -7,17 +7,16 @@
 
 set -euo pipefail
 
-DEPLOY_USER="${DEPLOY_USER:-deploy}"
-DEPLOY_HOST="${DEPLOY_HOST:-}"
-DEPLOY_PATH="${DEPLOY_PATH:-/srv/legal}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/deploy.conf"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
 step() { echo -e "\n${CYAN}▶ $*${NC}"; }
 ok()   { echo -e "${GREEN}  ✓ $*${NC}"; }
 die()  { echo -e "${RED}  ✗ $*${NC}" >&2; exit 1; }
 
-[[ -z "$DEPLOY_HOST" ]] && \
-  die "DEPLOY_HOST is not set.\nUsage: DEPLOY_HOST=your-server.com ./scripts/rollback.sh"
+[[ -z "$DEPLOY_HOST" || "$DEPLOY_HOST" == "your-server.com" ]] && \
+  die "Set DEPLOY_HOST in scripts/deploy.conf or: DEPLOY_HOST=1.2.3.4 ./scripts/rollback.sh"
 
 echo -e "\n${YELLOW}╔═══════════════════════════════════════╗"
 echo    "║  ROLLBACK — reverting to previous build"

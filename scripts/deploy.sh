@@ -14,19 +14,18 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-# ── Configuration ─────────────────────────────────────────────────────────────
-# Override any of these via environment variables before running the script.
-DEPLOY_USER="${DEPLOY_USER:-deploy}"
-DEPLOY_HOST="${DEPLOY_HOST:-}"               # required — set via env or below
-DEPLOY_PATH="${DEPLOY_PATH:-/srv/legal}"
-LOCALES="${LOCALES:-en_US}"                  # space-separated: "en_US uk_UA"
-BUILD_IMAGE="wardenenv/php-fpm:8.4-magento2"
-KEEP_BUILDS="${KEEP_BUILDS:-3}"              # how many old builds to keep on server
-
 # ── Paths ─────────────────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+
+# ── Configuration ─────────────────────────────────────────────────────────────
+# Sourced from scripts/deploy.conf (committed to git).
+# Any env var set before running overrides the file — e.g.:
+#   DEPLOY_HOST=staging ./scripts/deploy.sh
+source "$SCRIPT_DIR/deploy.conf"
+
+BUILD_IMAGE="wardenenv/php-fpm:8.4-magento2"
 
 # ── Colours ───────────────────────────────────────────────────────────────────
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
