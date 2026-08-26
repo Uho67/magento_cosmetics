@@ -1,0 +1,236 @@
+# Production Docker Compose — Magento Open Source 2.4.9
+# Usage: docker compose -f deploy/docker-compose.prod.yml --env-file .env.prod up -d
+#
+# All service-to-service traffic stays on the 'internal' network.
+# Only Traefik sits on the 'public' network (ports 80/443 exposed).
+
+name: legal
+
+services:
+
+  ##############################################################################
+  # Traefik — TLS termination + Let's Encrypt
+  ##############################################################################
+  traefik:
+    image: traefik:v3.1
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+      - "127.0.0.1:8080:8080"    # dashboard — loopback only, SSH tunnel to access
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - traefik-certs:/letsencrypt
+    networks:
+      - public
+    environment:
+      - TZ=Europe/Kyiv
+
+  ##############################################################################
+  # Varnish — full-page HTTP cache
+  ##############################################################################
+  varnish:
+    build:
+      context: ./varnish
+      dockerfile: Dockerfile
+    restart: always
+    depends_on:
+      - nginx
+    networks:
+      - public
+      - internal
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=legal_public"
+      # HTTPS router
+      - "traefik.http.routers.magento.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.magento.entrypoints=websecure"
+      - "traefik.http.routers.magento.tls.certresolver=letsencrypt"
+      - "traefik.http.services.magento.loadbalancer.server.port=6081"
+
+  ##############################################################################
+  # Nginx — static files + FastCGI proxy to php-fpm
+  ##############################################################################
+  nginx:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: nginx-runtime
+    restart: always
+    depends_on:
+      - php-fpm
+    networks:
+      - internal
+    volumes:
+      - media:/var/www/html/pub/media
+
+  ##############################################################################
+  # PHP-FPM — Magento application
+  ##############################################################################
+  php-fpm:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: php-runtime
+      secrets:
+        - composer_auth
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - internal
+    volumes:
+      - media:/var/www/html/pub/media
+      - logs:/var/www/html/var/log
+    environment:
+      - MAGE_MODE=production
+      - PHP_MEMORY_LIMIT=2G
+
+  ##############################################################################
+  # Cron — Magento scheduled tasks
+  ##############################################################################
+  cron:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: php-runtime
+    restart: always
+    depends_on:
+      - php-fpm
+    networks:
+      - internal
+    volumes:
+      - media:/var/www/html/pub/media
+      - logs:/var/www/html/var/log
+    environment:
+      - MAGE_MODE=production
+    command: >
+      bash -c "while true; do
+        php /var/www/html/bin/magento cron:run 2>&1;
+        sleep 60;
+      done"
+
+  ##############################################################################
+  # MariaDB 11.4
+  ##############################################################################
+  db:
+    image: mariadb:11.4
+    restart: always
+    networks:
+      - internal
+    volumes:
+      - dbdata:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    command:
+      - mysqld
+      - --max_allowed_packet=1024M
+      - --explicit_defaults_for_timestamp=on
+      - --innodb_buffer_pool_size=512M
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  ##############################################################################
+  # OpenSearch 2.19
+  ##############################################################################
+  opensearch:
+    image: opensearchproject/opensearch:2.19.0
+    restart: always
+    networks:
+      - internal
+    volumes:
+      - osdata:/usr/share/opensearch/data
+    environment:
+      - discovery.type=single-node
+      - OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g
+      - plugins.security.disabled=true
+      - DISABLE_SECURITY_PLUGIN=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  ##############################################################################
+  # Valkey 8 (Redis-compatible cache + session store)
+  ##############################################################################
+  redis:
+    image: valkey/valkey:8-alpine
+    restart: always
+    networks:
+      - internal
+    volumes:
+      - redisdata:/data
+    command: valkey-server --save 60 1 --loglevel warning
+
+  ##############################################################################
+  # RabbitMQ 3.13 — message queue
+  ##############################################################################
+  rabbitmq:
+    image: rabbitmq:3.13-alpine
+    restart: always
+    networks:
+      - internal
+    volumes:
+      - rabbitmqdata:/var/lib/rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+##############################################################################
+# Networks
+##############################################################################
+networks:
+  public:
+    name: legal_public
+  internal:
+    name: legal_internal
+    internal: true     # no outbound internet from app containers
+
+##############################################################################
+# Volumes
+##############################################################################
+volumes:
+  traefik-certs:
+  media:            # pub/media — persists user-uploaded files across deploys
+  logs:             # var/log  — persists logs across container restarts
+  dbdata:
+  osdata:
+  redisdata:
+  rabbitmqdata:
+
+##############################################################################
+# BuildKit secrets
+##############################################################################
+secrets:
+  composer_auth:
+    file: ../auth.json
