@@ -1,0 +1,29 @@
+# .warden/warden-env.yml — Docker Compose overrides merged on top of Warden's
+# built-in magento2 service definitions.
+# Docs: https://docs.warden.dev/configuration/customizing-env.html
+
+services:
+
+  # Replace Warden's default Redis image with Valkey (Redis-compatible fork).
+  # Valkey 8 is a drop-in replacement; no Magento config changes needed.
+  redis:
+    image: "valkey/valkey:8-alpine"
+    restart: always
+
+  # ── PHP-FPM ────────────────────────────────────────────────────────────────
+  php-fpm:
+    environment:
+      - "PHP_IDE_CONFIG=serverName=legal.test"
+    volumes:
+      - '${PWD}/.warden/php/config/01-php.ini:/etc/php.d/01-php.ini:ro'
+      - '${PWD}/.warden/php/config/10-opcache.ini:/etc/php.d/10-opcache.ini:ro'
+      - '${PWD}/var/log/php-fpm:/var/www/html/var/log'
+
+  # ── PHP Debug (Xdebug) ─────────────────────────────────────────────────────
+  php-debug:
+    environment:
+      - "PHP_IDE_CONFIG=serverName=legal.test"
+    volumes:
+      - '${PWD}/.warden/php/config/01-php.ini:/etc/php.d/01-php.ini:ro'
+      - '${PWD}/.warden/php/config/10-opcache.ini:/etc/php.d/10-opcache.ini:ro'
+      - '${PWD}/var/log/php-debug:/var/www/html/var/log'
