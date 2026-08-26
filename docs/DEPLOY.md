@@ -4,42 +4,73 @@
 
 ```
 Browser
-  └─▶ Server nginx :443  (host machine, outside Docker — SSL termination, your certs)
-        └─▶ Docker Varnish  127.0.0.1:6081  (full-page HTTP cache)
-              └─▶ Docker Nginx :80  (static files + FastCGI proxy)
-                    └─▶ Docker PHP-FPM :9000  (Magento application)
+  └─▶ Host nginx :443        (SSL termination, your certs — outside Docker)
+        └─▶ Docker Varnish 127.0.0.1:6081   (full-page HTTP cache)
+              └─▶ Docker Nginx :80           (static files + FastCGI proxy)
+                    └─▶ Docker PHP-FPM :9000 (Magento application)
 
 MariaDB, OpenSearch, Valkey, RabbitMQ — internal Docker network, no public ports.
 ```
 
-**Multi-store / multi-domain:** each domain gets its own `server {}` block in the
-host nginx, all proxying to the same `127.0.0.1:6081`. Magento routes by `Host`
-header to the correct website/store based on its Base URL configuration.
+**Code is not baked into Docker images.** Containers mount the active build from
+the host filesystem (`/srv/legal/builds/current/`). The deploy script builds
+on your local Mac, ships a tarball, and swaps directories on the server.
 
-## OS assumption: Ubuntu 24.04 LTS
+**Multi-store / multi-domain:** each domain gets its own `server {}` block in
+host nginx, all proxying to the same `127.0.0.1:6081`. Magento routes by `Host`
+header to the correct website/store via its Base URL configuration.
+
+---
+
+## Directory layout on the VPS
+
+```
+/srv/legal/
+├── repo/                          ← git clone of this repository
+│   └── deploy/
+│       ├── docker-compose.prod.yml
+│       ├── varnish/default.vcl
+│       ├── nginx/magento.conf
+│       ├── php/php.ini
+│       └── nginx-host/            ← copy these to /etc/nginx/ (one-time)
+│
+├── builds/
+│   ├── current/                   ← active build (mounted by Docker)
+│   ├── previous -> archive/…      ← symlink to last build (for rollback)
+│   └── archive/                   ← last N builds (N = KEEP_BUILDS in deploy.conf)
+│
+├── shared/
+│   ├── env.php                    ← copied into each build at deploy time
+│   ├── media/                     ← persistent pub/media (mounted by Docker)
+│   └── logs/                      ← persistent var/log  (mounted by Docker)
+│
+├── incoming/                      ← build tarballs land here during upload
+├── .env.prod                      ← secrets (gitignored, never committed)
+└── auth.json                      ← Composer Marketplace keys (gitignored)
+```
 
 ---
 
 ## Part 1 — First-time server provisioning
 
-### 1.1 Install nginx + Docker
+Tested on Ubuntu 24.04 LTS.
+
+### 1.1 Install nginx and Docker
 
 ```bash
-# nginx (host-level reverse proxy)
-apt-get update
-apt-get install -y nginx
+apt-get update && apt-get install -y nginx curl
 
-# Remove old Docker versions
+# Remove any old Docker packages
 apt-get remove -y docker docker-engine docker.io containerd runc 2>/dev/null || true
 
-# Install Docker Engine
+# Install Docker Engine (Compose plugin included)
 curl -fsSL https://get.docker.com | sh
 systemctl enable --now docker
 
 # Verify
 nginx -v
 docker --version
-docker compose version    # must be 2.x (Compose plugin, not legacy docker-compose)
+docker compose version    # must be 2.x — the Compose plugin, not legacy docker-compose
 ```
 
 ### 1.2 Configure firewall
@@ -50,42 +81,69 @@ ufw allow 80/tcp
 ufw allow 443/tcp
 ufw enable
 ufw status
-# Port 6081 (Varnish) is NOT opened — it binds to 127.0.0.1 only.
 ```
 
-### 1.3 Create deploy user (recommended)
+Port 6081 (Varnish) is **not** opened — it binds to `127.0.0.1` only and is
+never directly reachable from outside the server.
+
+### 1.3 Create a deploy user
 
 ```bash
 adduser deploy
 usermod -aG docker deploy
-# Add your SSH public key to /home/deploy/.ssh/authorized_keys
+
+mkdir -p /home/deploy/.ssh
+# Paste your SSH public key:
+echo "ssh-ed25519 AAAA..." >> /home/deploy/.ssh/authorized_keys
+chmod 700 /home/deploy/.ssh
+chmod 600 /home/deploy/.ssh/authorized_keys
+chown -R deploy:deploy /home/deploy/.ssh
 ```
 
-### 1.4 Install SSL certificates
+### 1.4 Create the server directory structure
 
-Place your certificate files on the server. Example paths:
+```bash
+mkdir -p /srv/legal/{repo,builds,shared/{media,logs},incoming}
+chown -R deploy:deploy /srv/legal
+```
+
+### 1.5 Clone the repository
+
+```bash
+su - deploy
+git clone <repo-url> /srv/legal/repo
+```
+
+### 1.6 Install SSL certificates
+
+Place your certificate and private key on the server:
+
 ```
 /etc/ssl/certs/yourdomain.com.crt
 /etc/ssl/private/yourdomain.com.key
 ```
 
-If using Certbot:
+Or use Certbot (Let's Encrypt):
+
 ```bash
 apt-get install -y certbot python3-certbot-nginx
-certbot --nginx -d yourdomain.com -d www.yourdomain.com
+certbot certonly --standalone -d yourdomain.com -d www.yourdomain.com
 ```
 
-### 1.5 Configure host nginx
+Certbot stores certs at `/etc/letsencrypt/live/yourdomain.com/`. Reference those
+paths in your nginx `server {}` block (see §1.7).
+
+### 1.7 Configure host nginx
 
 ```bash
-# Install shared snippets (TLS settings + proxy block)
-cp /srv/legal/deploy/nginx-host/snippets/*.snippet /etc/nginx/snippets/
+# Copy shared TLS and proxy snippets
+cp /srv/legal/repo/deploy/nginx-host/snippets/*.snippet /etc/nginx/snippets/
 
-# Create a vhost for each domain (copy and edit the example)
-cp /srv/legal/deploy/nginx-host/sites-enabled/store.conf.example \
+# Create a vhost for your domain (copy and edit the example)
+cp /srv/legal/repo/deploy/nginx-host/sites-enabled/store.conf.example \
    /etc/nginx/sites-enabled/yourdomain.com.conf
 
-# Edit: set server_name and ssl_certificate paths
+# Edit: set server_name and ssl_certificate / ssl_certificate_key
 nano /etc/nginx/sites-enabled/yourdomain.com.conf
 
 # Disable the default vhost, test, reload
@@ -93,241 +151,411 @@ rm -f /etc/nginx/sites-enabled/default
 nginx -t && systemctl reload nginx
 ```
 
-> See `deploy/nginx-host/` for the full file layout and multi-domain instructions.
+The `store.conf.example` template:
+- Redirects HTTP → HTTPS
+- Terminates TLS with your cert
+- Proxies all requests to `http://127.0.0.1:6081` (Docker Varnish)
+- Passes `X-Forwarded-Proto: https` so Magento generates correct HTTPS URLs
 
-### 1.6 Clone the repository
+For each additional store/domain: copy the example, change `server_name` and
+cert paths, reload nginx. No Docker config changes needed.
+
+### 1.8 Create the secrets files on the server
 
 ```bash
-git clone <repo-url> /srv/legal
-cd /srv/legal
+su - deploy
+
+# Magento Marketplace credentials (Composer needs these to pull Magento packages)
+cp /srv/legal/repo/auth.json.example /srv/legal/auth.json
+nano /srv/legal/auth.json
+
+# Production environment variables
+cp /srv/legal/repo/.env.prod.example /srv/legal/.env.prod
+nano /srv/legal/.env.prod    # fill in all passwords and your domain
 ```
 
-### 1.7 Create secrets files
+Key variables in `.env.prod`:
+
+| Variable | Description |
+|---|---|
+| `DOMAIN` | Your domain, e.g. `example.com` |
+| `APP_ROOT` | `/srv/legal/builds/current` (do not change) |
+| `SHARED_MEDIA` | `/srv/legal/shared/media` |
+| `SHARED_LOGS` | `/srv/legal/shared/logs` |
+| `DB_ROOT_PASSWORD` | MariaDB root password |
+| `DB_NAME / DB_USER / DB_PASSWORD` | Magento DB credentials |
+| `RABBITMQ_USER / RABBITMQ_PASSWORD` | RabbitMQ credentials |
+| `CRYPT_KEY` | Magento crypt key — fill in after §2.2 |
+
+### 1.9 Start infrastructure services (first time only)
 
 ```bash
-# Magento Marketplace credentials (for Composer --secret during image build)
-cp auth.json.example auth.json
-nano auth.json   # fill in public/private Marketplace keys
+COMPOSE="docker compose -f /srv/legal/repo/deploy/docker-compose.prod.yml --env-file /srv/legal/.env.prod"
 
-# Production environment secrets
-cp .env.prod.example .env.prod
-nano .env.prod   # fill in DB passwords, RabbitMQ creds, domain, etc.
+# Pull images and start all background services
+$COMPOSE pull
+$COMPOSE up -d db opensearch redis rabbitmq
+
+# Wait ~60 s for OpenSearch and MariaDB healthchecks to pass
+$COMPOSE ps
+```
+
+### 1.10 Run setup:install (first deploy only)
+
+```bash
+source /srv/legal/.env.prod
+
+$COMPOSE run --rm php-fpm php /var/www/html/bin/magento setup:install \
+  --base-url="https://${DOMAIN}/" \
+  --base-url-secure="https://${DOMAIN}/" \
+  --db-host="db" \
+  --db-name="${DB_NAME}" \
+  --db-user="${DB_USER}" \
+  --db-password="${DB_PASSWORD}" \
+  --search-engine="opensearch" \
+  --opensearch-host="opensearch" \
+  --opensearch-port="9200" \
+  --opensearch-index-prefix="magento2" \
+  --cache-backend="valkey" \
+  --cache-backend-valkey-server="redis" \
+  --cache-backend-valkey-db="0" \
+  --page-cache="valkey" \
+  --page-cache-valkey-server="redis" \
+  --page-cache-valkey-db="1" \
+  --session-save="valkey" \
+  --session-save-valkey-host="redis" \
+  --session-save-valkey-db="2" \
+  --http-cache-hosts="varnish:6081" \
+  --amqp-host="rabbitmq" \
+  --amqp-port="5672" \
+  --amqp-user="${RABBITMQ_USER}" \
+  --amqp-password="${RABBITMQ_PASSWORD}" \
+  --amqp-virtualhost="/" \
+  --backend-frontname="admin" \
+  --admin-user="${ADMIN_USER}" \
+  --admin-password="${ADMIN_PASSWORD}" \
+  --admin-email="${ADMIN_EMAIL}" \
+  --admin-firstname="Admin" \
+  --admin-lastname="User" \
+  --language="en_US" \
+  --currency="USD" \
+  --timezone="Europe/Kyiv" \
+  --use-rewrites="1" \
+  --use-secure="1" \
+  --use-secure-admin="1"
+```
+
+After install completes:
+
+1. **Save `app/etc/env.php` to `shared/`** — this file holds the database
+   connection and crypt key. It is never committed to git and must survive
+   across deploys.
+
+   ```bash
+   cp /srv/legal/builds/current/app/etc/env.php /srv/legal/shared/env.php
+   ```
+
+2. **Copy the crypt key into `.env.prod`** — for reference and backup:
+
+   ```bash
+   grep crypt /srv/legal/shared/env.php
+   # Copy the key value into CRYPT_KEY= in /srv/legal/.env.prod
+   ```
+
+   > **Back up `env.php` and its crypt key in a secure location (password
+   > manager, encrypted storage).** Losing the crypt key makes all encrypted
+   > data (payment credentials, API tokens) permanently unrecoverable.
+
+### 1.11 Start all services
+
+```bash
+$COMPOSE up -d
+
+# Confirm all 8 services are Up
+$COMPOSE ps
+```
+
+Visit `https://yourdomain.com` — you should see the Magento storefront.
+
+---
+
+## Part 2 — Routine code deploys
+
+All deploy steps run **on your local Mac**. The script handles everything
+remotely over SSH.
+
+### 2.1 Configure your deploy target (one-time)
+
+Edit `scripts/deploy.conf` and set your server's IP or hostname:
+
+```bash
+# scripts/deploy.conf
+DEPLOY_HOST="your-server.com"   # ← replace this
+DEPLOY_USER="deploy"
+DEPLOY_PATH="/srv/legal"
+LOCALES="en_US"
+KEEP_BUILDS=3
+```
+
+Any variable can be overridden per-run without editing the file:
+
+```bash
+LOCALES="en_US uk_UA" ./scripts/deploy.sh
+```
+
+### 2.2 Run a deploy
+
+```bash
+# From the project root on your Mac:
+./scripts/deploy.sh
+
+# or via Makefile:
+make deploy
+```
+
+The script runs four phases automatically:
+
+```
+Phase 1 — Export clean source from git (git archive HEAD)
+Phase 2 — Build inside a linux/amd64 Docker container
+           • composer install --no-dev
+           • module:enable Magento_TwoFactorAuth (re-enable 2FA for prod)
+           • module:disable MarkShust_DisableTwoFactorAuth
+           • setup:di:compile
+           • setup:static-content:deploy
+Phase 3 — Create tarball (excludes var/, pub/media/, env.php, auth.json, etc.)
+           Upload via rsync to /srv/legal/incoming/
+Phase 4 — Remote deploy (over SSH):
+           • Extract tarball to builds/new/
+           • Copy shared/env.php into the new build
+           • Run setup:upgrade via docker run (against live DB, new code)
+           • mv builds/current  → builds/archive/<timestamp>-prev
+           • mv builds/new      → builds/current          (atomic)
+           • ln -sfn archive/…  → builds/previous         (for rollback)
+           • docker compose restart php-fpm nginx cron    (clears OPcache)
+           • cache:flush
+           • Prune old archives (keep KEEP_BUILDS)
+```
+
+**Why `docker restart` instead of a rolling update?** Docker resolves bind
+mounts at container start time. Changing `builds/current` via `mv` on the host
+does not affect a running container — a restart is required to pick up the new
+mount path. The restart takes 2–3 seconds; Varnish continues to serve cached
+pages during that window.
+
+### 2.3 What triggers a deploy
+
+- Any code change pushed to `main` (module updates, templates, config changes)
+- Composer dependency changes (`composer.json` / `composer.lock`)
+- Changes to `deploy/` config files (nginx, PHP, VCL) — note: Varnish and
+  nginx containers must be separately restarted when their configs change (see §4)
+
+### 2.4 What does NOT need a deploy
+
+- Admin configuration changes (stored in DB)
+- Content page / CMS changes (stored in DB)
+- Media uploads (go into `shared/media/`, persisted across deploys)
+
+---
+
+## Part 3 — Rollback
+
+If a deploy causes problems, revert to the previous build:
+
+```bash
+./scripts/rollback.sh
+
+# or:
+make rollback
+```
+
+What the rollback script does:
+
+1. Saves the failed build as `builds/rollback-<timestamp>/` (for investigation)
+2. Copies `builds/previous/` back to `builds/current/`
+3. Restarts `php-fpm`, `nginx`, `cron` (new code takes effect)
+4. Flushes Magento cache
+
+> **Database caveat:** if the failed deploy ran `setup:upgrade` and applied
+> schema changes, rolling back the code does not revert the database schema.
+> Magento has no automatic schema rollback. If the schema change caused the
+> problem, you will need to restore a database snapshot.
+
+---
+
+## Part 4 — Updating Docker service configs
+
+Some changes are not part of the code deploy and require separate steps.
+
+### Nginx or PHP config changes
+
+Nginx and PHP configs are mounted from `repo/deploy/nginx/` and `repo/deploy/php/`:
+
+```bash
+# On the server — pull new config from git, then reload the affected service
+cd /srv/legal/repo && git pull
+
+COMPOSE="docker compose -f /srv/legal/repo/deploy/docker-compose.prod.yml --env-file /srv/legal/.env.prod"
+
+# PHP config (php.ini):
+$COMPOSE restart php-fpm cron
+
+# Nginx config:
+$COMPOSE exec nginx nginx -t          # test first
+$COMPOSE restart nginx
+```
+
+### Varnish VCL changes
+
+Varnish is a built image (VCL only, not application code). Rebuild it when
+`deploy/varnish/default.vcl` changes:
+
+```bash
+cd /srv/legal/repo && git pull
+
+COMPOSE="docker compose -f /srv/legal/repo/deploy/docker-compose.prod.yml --env-file /srv/legal/.env.prod"
+
+$COMPOSE build varnish
+$COMPOSE up -d --no-deps --force-recreate varnish
+```
+
+### Docker image updates (MariaDB, OpenSearch, etc.)
+
+Pull new images and recreate only the affected service:
+
+```bash
+$COMPOSE pull db
+$COMPOSE up -d --no-deps --force-recreate db
 ```
 
 ---
 
-## Part 2 — First-time application deploy
+## Part 5 — Operational commands
 
-### 2.1 Build images
+Add this alias to `/home/deploy/.bashrc` on the server to save typing:
 
 ```bash
-cd /srv/legal
-
-export DOCKER_BUILDKIT=1
-
-docker build \
-  --secret id=composer_auth,src=auth.json \
-  --target php-runtime \
-  -t legal/php:latest \
-  -f deploy/Dockerfile .
-
-docker build \
-  --secret id=composer_auth,src=auth.json \
-  --target nginx-runtime \
-  -t legal/nginx:latest \
-  -f deploy/Dockerfile .
-
-docker build \
-  -t legal/varnish:latest \
-  deploy/varnish/
+alias dc='docker compose -f /srv/legal/repo/deploy/docker-compose.prod.yml --env-file /srv/legal/.env.prod'
 ```
 
-### 2.2 Start infrastructure services
+**Logs:**
 
 ```bash
-docker compose -f deploy/docker-compose.prod.yml --env-file .env.prod \
-  up -d db opensearch redis rabbitmq
-
-# Wait for healthchecks to pass (~60s for OpenSearch)
-docker compose -f deploy/docker-compose.prod.yml --env-file .env.prod \
-  ps --format "table {{.Name}}\t{{.Status}}"
+dc logs -f php-fpm          # PHP application output
+dc logs -f nginx            # nginx access + error
+dc logs -f varnish          # cache hit/miss, ban log
+tail -f /srv/legal/shared/logs/php-errors.log        # PHP error log (from ini)
+tail -f /var/log/nginx/yourdomain.com.access.log     # host nginx access
+tail -f /var/log/nginx/yourdomain.com.error.log      # host nginx errors
 ```
 
-### 2.3 Run setup:install (first deploy only)
+**Shells:**
 
 ```bash
-source .env.prod
-
-docker compose -f deploy/docker-compose.prod.yml --env-file .env.prod \
-  run --rm php-fpm php bin/magento setup:install \
-    --base-url="https://${DOMAIN}/" \
-    --base-url-secure="https://${DOMAIN}/" \
-    --db-host="db" \
-    --db-name="${DB_NAME}" \
-    --db-user="${DB_USER}" \
-    --db-password="${DB_PASSWORD}" \
-    --search-engine="opensearch" \
-    --opensearch-host="opensearch" \
-    --opensearch-port="9200" \
-    --opensearch-index-prefix="magento2" \
-    --cache-backend="valkey" \
-    --cache-backend-valkey-server="redis" \
-    --cache-backend-valkey-db="0" \
-    --page-cache="valkey" \
-    --page-cache-valkey-server="redis" \
-    --page-cache-valkey-db="1" \
-    --session-save="valkey" \
-    --session-save-valkey-host="redis" \
-    --session-save-valkey-db="2" \
-    --http-cache-hosts="varnish:6081" \
-    --amqp-host="rabbitmq" \
-    --amqp-port="5672" \
-    --amqp-user="${RABBITMQ_USER}" \
-    --amqp-password="${RABBITMQ_PASSWORD}" \
-    --amqp-virtualhost="/" \
-    --backend-frontname="admin" \
-    --admin-user="${ADMIN_USER}" \
-    --admin-password="${ADMIN_PASSWORD}" \
-    --admin-email="${ADMIN_EMAIL}" \
-    --admin-firstname="Admin" \
-    --admin-lastname="User" \
-    --language="en_US" \
-    --currency="USD" \
-    --timezone="Europe/Kyiv" \
-    --use-rewrites="1" \
-    --use-secure="1" \
-    --use-secure-admin="1"
+dc exec php-fpm bash                           # PHP container
+dc exec db mariadb -u magento -p              # MariaDB CLI
 ```
 
-After install, save the generated crypt key somewhere safe:
-```bash
-docker compose -f deploy/docker-compose.prod.yml --env-file .env.prod \
-  run --rm php-fpm grep -A2 "crypt" app/etc/env.php
-```
-
-> **Back up `app/etc/env.php`** — it contains the crypt key. If lost, all
-> encrypted data (payment credentials, API tokens) is unrecoverable.
-
-### 2.4 Start all services
+**Magento CLI:**
 
 ```bash
-docker compose -f deploy/docker-compose.prod.yml --env-file .env.prod up -d
-
-# Confirm all 7 services are running
-docker compose -f deploy/docker-compose.prod.yml --env-file .env.prod ps
-```
-
----
-
-## Part 3 — Routine code deploys
-
-```bash
-cd /srv/legal
-
-# 1. Pull latest code
-git pull origin main
-
-# 2. Rebuild only changed images
-export DOCKER_BUILDKIT=1
-docker build --secret id=composer_auth,src=auth.json \
-  --target php-runtime  -t legal/php:latest   -f deploy/Dockerfile .
-docker build --secret id=composer_auth,src=auth.json \
-  --target nginx-runtime -t legal/nginx:latest -f deploy/Dockerfile .
-
-# 3. Run DB migrations before switching traffic
-docker compose -f deploy/docker-compose.prod.yml --env-file .env.prod \
-  run --rm php-fpm php bin/magento setup:upgrade --keep-generated
-
-# 4. Swap containers (zero-downtime: Varnish keeps serving cached pages during swap)
-docker compose -f deploy/docker-compose.prod.yml --env-file .env.prod \
-  up -d --no-deps --force-recreate php-fpm nginx cron
-
-# 5. Flush caches
-docker compose -f deploy/docker-compose.prod.yml --env-file .env.prod \
-  exec php-fpm php bin/magento cache:flush
-```
-
----
-
-## Part 4 — Rollback
-
-```bash
-# Re-tag a previous image as latest
-docker tag legal/php:<previous-tag>   legal/php:latest
-docker tag legal/nginx:<previous-tag> legal/nginx:latest
-
-# Recreate containers from old images
-docker compose -f deploy/docker-compose.prod.yml --env-file .env.prod \
-  up -d --no-deps --force-recreate php-fpm nginx cron
-
-docker compose -f deploy/docker-compose.prod.yml --env-file .env.prod \
-  exec php-fpm php bin/magento cache:flush
-```
-
----
-
-## Part 5 — Useful operational commands
-
-```bash
-# Shorthand alias (add to ~/.bashrc on the server)
-alias dc='docker compose -f /srv/legal/deploy/docker-compose.prod.yml --env-file /srv/legal/.env.prod'
-
-dc logs -f php-fpm          # stream application logs
-dc logs -f nginx            # stream nginx access/error logs
-dc logs -f varnish          # stream varnish logs
-dc exec php-fpm bash        # shell into PHP container
-dc exec db mariadb -u magento -p magento
-
 dc exec php-fpm php bin/magento indexer:reindex
+dc exec php-fpm php bin/magento indexer:status
 dc exec php-fpm php bin/magento cache:status
-dc exec varnish varnishstat -1
-dc exec rabbitmq rabbitmqctl list_queues
+dc exec php-fpm php bin/magento cache:flush
+dc exec php-fpm php bin/magento setup:upgrade --keep-generated
+```
 
-# View host nginx logs
-tail -f /var/log/nginx/yourdomain.com.access.log
-tail -f /var/log/nginx/yourdomain.com.error.log
+**Varnish:**
+
+```bash
+dc exec varnish varnishstat -1                    # hit rate, request counts
+dc exec varnish varnishadm ban 'req.url ~ "."'   # ban everything (full purge)
+```
+
+**RabbitMQ:**
+
+```bash
+dc exec rabbitmq rabbitmqctl list_queues name messages consumers
+```
+
+**Disk usage:**
+
+```bash
+du -sh /srv/legal/builds/archive/*   # size of each archived build
+du -sh /srv/legal/shared/media/      # media library size
 ```
 
 ---
 
 ## Part 6 — Multi-store / multi-domain setup
 
-For each additional store/website:
+All domains proxy to the same Docker Varnish. Magento identifies the correct
+store by the `Host` header passed through the proxy chain.
 
-1. Add a new `server {}` block in `/etc/nginx/sites-enabled/` (copy `store.conf.example`).
-2. Point the new domain's DNS A record to the VPS IP.
-3. Install the SSL cert for the new domain.
-4. In Magento admin: Stores → All Stores → create the new website/store/store view.
-5. Set the Base URLs for the new store (Stores → Config → Web → Base URLs).
-6. All domains proxy to the same `127.0.0.1:6081` — Magento routes by `Host` header.
+**For each additional domain:**
+
+1. Point the domain's DNS A record to the VPS IP.
+
+2. Install the SSL certificate for the new domain.
+
+3. Copy the nginx vhost template:
+
+   ```bash
+   cp /srv/legal/repo/deploy/nginx-host/sites-enabled/store.conf.example \
+      /etc/nginx/sites-enabled/newdomain.com.conf
+   # Edit server_name and ssl_certificate paths
+   nginx -t && systemctl reload nginx
+   ```
+
+4. In Magento admin: **Stores → All Stores** — create the Website, Store, and
+   Store View.
+
+5. Set base URLs: **Stores → Configuration → Web → Base URLs** — set both
+   `Base URL` and `Base Link URL` for the new store view to `https://newdomain.com/`.
+
+6. Flush caches:
+
+   ```bash
+   dc exec php-fpm php bin/magento cache:flush
+   ```
+
+No Docker config changes are required. The new domain is immediately served by
+the existing `php-fpm` and `varnish` containers.
 
 ---
 
-## Part 7 — MarkShust_DisableTwoFactorAuth in production
-
-This module is a `--dev` Composer dependency. The production Dockerfile runs
-`composer install --no-dev` so its PHP classes are never present on the server.
-The builder stage also explicitly disables it:
-
-```dockerfile
-RUN php bin/magento module:disable MarkShust_DisableTwoFactorAuth --no-backup 2>/dev/null || true
-```
-
-Result: 2FA is **active** in production and **disabled** only in local dev.
-
----
-
-## Part 8 — Environment parity
+## Part 7 — Environment parity
 
 | Component | Local (Warden) | Production (VPS) |
-|-----------|---------------|------------------|
+|---|---|---|
 | PHP | wardenenv/php-fpm:8.4-magento2 | wardenenv/php-fpm:8.4-magento2 |
 | MariaDB | 11.4 | 11.4 |
 | OpenSearch | 2.19 | 2.19 |
-| Cache/session | Valkey 8 | Valkey 8 |
+| Cache / Sessions | Valkey 8 | Valkey 8 |
 | HTTP cache | Varnish 7.7 | Varnish 7.7 |
 | Queue | RabbitMQ 3.13 | RabbitMQ 3.13 |
-| TLS | Warden mkcert | Server nginx + your certs |
+| TLS | Warden mkcert (auto) | Host nginx + your certs |
 | Magento mode | developer | production |
-| OPcache | validate every request | disabled (max perf) |
-| 2FA | disabled | enabled |
+| OPcache | validate every request | `validate_timestamps=0` (max perf) |
+| 2FA | disabled (MarkShust module) | enabled |
+| Build platform | native macOS | linux/amd64 Docker container |
+
+---
+
+## Part 8 — 2FA and the MarkShust module
+
+`markshust/magento2-module-disabletwofactorauth` is installed as a `--dev`
+Composer dependency. The production build step runs `composer install --no-dev`,
+so the module's PHP classes are never present on the server.
+
+Additionally, the deploy script explicitly re-enables 2FA before compiling:
+
+```bash
+php bin/magento module:enable Magento_TwoFactorAuth Magento_AdminAdobeImsTwoFactorAuth
+php bin/magento module:disable MarkShust_DisableTwoFactorAuth
+```
+
+This overwrites the `Magento_TwoFactorAuth=0` entry that the module writes to
+`app/etc/config.php` during local development, ensuring 2FA is **always active
+in production** regardless of what is committed in `config.php`.
