@@ -1,11 +1,11 @@
 # Production Docker Compose — Magento Open Source 2.4.9
 #
-# SSL termination is handled by the server-level nginx (outside Docker).
-# Varnish is the only service exposed — bound to localhost:6081 so the
-# host nginx can proxy to it. Everything else is on an isolated internal network.
+# Application code lives on the host filesystem at APP_ROOT (set in .env.prod).
+# Docker containers provide PHP/nginx runtime only — code is NOT baked into images.
+# Deployment is handled by scripts/deploy.sh (build locally → tar → push → swap).
 #
-# Usage (from repo root):
-#   docker compose -f deploy/docker-compose.prod.yml --env-file .env.prod up -d
+# Usage (from /srv/legal/repo/):
+#   docker compose -f deploy/docker-compose.prod.yml --env-file /srv/legal/.env.prod up -d
 
 name: legal
 
@@ -13,12 +13,11 @@ services:
 
   ##############################################################################
   # Varnish — full-page HTTP cache
-  # Exposed on 127.0.0.1:6081 only — reachable by the host nginx, not the internet.
+  # Built once (VCL config only, no app code). Rebuild only when VCL changes.
   ##############################################################################
   varnish:
     build:
       context: ./varnish
-      dockerfile: Dockerfile
     restart: always
     depends_on:
       - nginx
@@ -28,31 +27,28 @@ services:
       - internal
 
   ##############################################################################
-  # Nginx — static files + FastCGI proxy to php-fpm
+  # Nginx — static file serving + FastCGI proxy
+  # Config mounted from repo; pub/ mounted from active build.
   ##############################################################################
   nginx:
-    build:
-      context: ..
-      dockerfile: deploy/Dockerfile
-      target: nginx-runtime
+    image: nginx:1.26-alpine
     restart: always
     depends_on:
       - php-fpm
     networks:
       - internal
     volumes:
-      - media:/var/www/html/pub/media
+      - ${APP_ROOT}/pub:/var/www/html/pub:ro
+      - ${SHARED_MEDIA}:/var/www/html/pub/media:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/magento.conf:/etc/nginx/conf.d/default.conf:ro
 
   ##############################################################################
-  # PHP-FPM — Magento application
+  # PHP-FPM — Magento application runtime
+  # Code mounted from active build at APP_ROOT.
   ##############################################################################
   php-fpm:
-    build:
-      context: ..
-      dockerfile: deploy/Dockerfile
-      target: php-runtime
-      secrets:
-        - composer_auth
+    image: wardenenv/php-fpm:8.4-magento2
     restart: always
     depends_on:
       db:
@@ -66,27 +62,27 @@ services:
     networks:
       - internal
     volumes:
-      - media:/var/www/html/pub/media
-      - logs:/var/www/html/var/log
+      - ${APP_ROOT}:/var/www/html
+      - ${SHARED_MEDIA}:/var/www/html/pub/media
+      - ${SHARED_LOGS}:/var/www/html/var/log
+      - ./php/php.ini:/usr/local/etc/php/conf.d/99-magento-prod.ini:ro
     environment:
       - MAGE_MODE=production
 
   ##############################################################################
-  # Cron — Magento scheduled tasks (runs bin/magento cron:run every 60s)
+  # Cron — Magento scheduled tasks (same image/code as php-fpm)
   ##############################################################################
   cron:
-    build:
-      context: ..
-      dockerfile: deploy/Dockerfile
-      target: php-runtime
+    image: wardenenv/php-fpm:8.4-magento2
     restart: always
     depends_on:
       - php-fpm
     networks:
       - internal
     volumes:
-      - media:/var/www/html/pub/media
-      - logs:/var/www/html/var/log
+      - ${APP_ROOT}:/var/www/html
+      - ${SHARED_MEDIA}:/var/www/html/pub/media
+      - ${SHARED_LOGS}:/var/www/html/var/log
     environment:
       - MAGE_MODE=production
     command: >
@@ -138,12 +134,8 @@ services:
       - plugins.security.disabled=true
       - DISABLE_SECURITY_PLUGIN=true
     ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-      nofile:
-        soft: 65536
-        hard: 65536
+      memlock: { soft: -1, hard: -1 }
+      nofile:  { soft: 65536, hard: 65536 }
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
       interval: 15s
@@ -152,7 +144,7 @@ services:
       start_period: 60s
 
   ##############################################################################
-  # Valkey 8 (Redis-compatible — cache, FPC, sessions)
+  # Valkey 8 — cache, FPC, sessions
   ##############################################################################
   redis:
     image: valkey/valkey:8-alpine
@@ -164,7 +156,7 @@ services:
     command: valkey-server --save 60 1 --loglevel warning
 
   ##############################################################################
-  # RabbitMQ 3.13 — async message queue
+  # RabbitMQ 3.13 — async queue
   ##############################################################################
   rabbitmq:
     image: rabbitmq:3.13-alpine
@@ -184,27 +176,14 @@ services:
       start_period: 30s
 
 ##############################################################################
-# Networks
-##############################################################################
 networks:
   internal:
     name: legal_internal
-    internal: true    # no outbound internet access from app containers
+    internal: true
 
 ##############################################################################
-# Volumes
-##############################################################################
 volumes:
-  media:          # pub/media — user-uploaded files, persists across deploys
-  logs:           # var/log  — persists across container restarts
   dbdata:
   osdata:
   redisdata:
   rabbitmqdata:
-
-##############################################################################
-# BuildKit secrets
-##############################################################################
-secrets:
-  composer_auth:
-    file: ../auth.json
