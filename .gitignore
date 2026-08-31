@@ -39,3 +39,7 @@ yarn-error.log*
 # ── Composer cache (not the lock file — lock file should be committed) ────────
 # DO commit composer.json and composer.lock
 .mcp.json
+/.claude
+/.github
+/AGENTS.md
+/CLAUDE.md
