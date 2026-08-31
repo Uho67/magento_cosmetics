@@ -56,7 +56,7 @@ step "Phase 1/4 — Export clean source from git"
 
 BUILD_DIR=$(mktemp -d)
 # Ensure we clean up build dir on exit (even on error)
-trap 'echo -e "\n${YELLOW}Cleaning up local build dir...${NC}"; rm -rf "$BUILD_DIR"' EXIT
+trap 'echo -e "\n${YELLOW}Cleaning up local build dir...${NC}"; rm -rf "$BUILD_DIR" "$ARCHIVE"' EXIT
 
 git -C "$PROJECT_ROOT" archive HEAD | tar -x -C "$BUILD_DIR"
 ok "Exported $(git -C "$PROJECT_ROOT" rev-parse --short HEAD) to $BUILD_DIR"
@@ -69,14 +69,13 @@ docker run --rm \
   --platform linux/amd64 \
   -v "$BUILD_DIR:/app" \
   -v "$HOME/.composer/cache:/root/.composer/cache" \
-  -v "$PROJECT_ROOT/auth.json:/root/.composer/auth.json:ro" \
+  -e COMPOSER_AUTH="$(cat "$PROJECT_ROOT/auth.json")" \
   -w /app \
   "$BUILD_IMAGE" bash -lc "
     set -euo pipefail
 
     echo '--- composer install --no-dev ---'
-    COMPOSER_HOME=/root/.composer \
-      composer install --no-dev --no-interaction --optimize-autoloader --prefer-dist
+    composer install --no-dev --no-interaction --optimize-autoloader --prefer-dist
 
     echo '--- Enable 2FA (disabled by MarkShust in local dev config.php) ---'
     php bin/magento module:enable \
@@ -90,16 +89,13 @@ docker run --rm \
 
     echo '--- setup:di:compile ---'
     php bin/magento setup:di:compile
-
-    echo '--- setup:static-content:deploy ---'
-    php bin/magento setup:static-content:deploy -f $LOCALES --no-interaction
   "
 ok "Build complete"
 
 # ── Phase 3: Create tarball ───────────────────────────────────────────────────
 step "Phase 3/4 — Create and upload artifact"
 
-ARCHIVE="$BUILD_DIR/build-${TIMESTAMP}.tar.gz"
+ARCHIVE="/tmp/build-${TIMESTAMP}.tar.gz"
 tar -czf "$ARCHIVE" \
   -C "$BUILD_DIR" \
   --exclude='./var' \
@@ -131,7 +127,7 @@ ARCHIVE_NAME="build-${TIMESTAMP}.tar.gz"
 COMPOSE_CMD="docker compose -f ${DEPLOY_PATH}/repo/deploy/docker-compose.prod.yml --env-file ${DEPLOY_PATH}/.env.prod"
 
 ssh "${DEPLOY_USER}@${DEPLOY_HOST}" bash -s -- \
-  "$DEPLOY_PATH" "$TIMESTAMP" "$ARCHIVE_NAME" "$COMPOSE_CMD" "$KEEP_BUILDS" \
+  "$DEPLOY_PATH" "$TIMESTAMP" "$ARCHIVE_NAME" "$COMPOSE_CMD" "$KEEP_BUILDS" "$LOCALES" \
   <<'REMOTE'
 set -euo pipefail
 
@@ -140,6 +136,7 @@ TIMESTAMP="$2"
 ARCHIVE_NAME="$3"
 COMPOSE_CMD="$4"
 KEEP_BUILDS="$5"
+LOCALES="$6"
 
 NEW="$DEPLOY_PATH/builds/new"
 CURRENT="$DEPLOY_PATH/builds/current"
@@ -168,6 +165,18 @@ docker run --rm \
   wardenenv/php-fpm:8.4-magento2 \
   php /var/www/html/bin/magento setup:upgrade --keep-generated
 echo "setup:upgrade OK"
+
+echo "--- Running setup:static-content:deploy against new build (needs live DB) ---"
+docker run --rm \
+  --network legal_internal \
+  --platform linux/amd64 \
+  -v "$NEW:/var/www/html" \
+  -v "$DEPLOY_PATH/shared/media:/var/www/html/pub/media" \
+  -v "$DEPLOY_PATH/shared/logs:/var/www/html/var/log" \
+  -e MAGE_MODE=production \
+  wardenenv/php-fpm:8.4-magento2 \
+  php /var/www/html/bin/magento setup:static-content:deploy -f $LOCALES --no-interaction
+echo "static-content:deploy OK"
 
 echo "--- Archiving current build (for rollback history) ---"
 mkdir -p "$ARCHIVE_STORE"
