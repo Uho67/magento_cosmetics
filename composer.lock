@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "648583320ed23b18894573d514e6b169",
+    "content-hash": "4d135127407ec870ec5f144e62cab63c",
     "packages": [
         {
             "name": "2tvenom/cborencode",
@@ -19263,6 +19263,91 @@
             "time": "2026-08-03T08:38:57+00:00"
         },
         {
+            "name": "mageplaza/magento-2-ukrainian-language-pack",
+            "version": "dev-master",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/mageplaza/magento-2-ukrainian-language-pack.git",
+                "reference": "820426421c315bdce891981439ada4978af0105b"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/mageplaza/magento-2-ukrainian-language-pack/zipball/820426421c315bdce891981439ada4978af0105b",
+                "reference": "820426421c315bdce891981439ada4978af0105b",
+                "shasum": ""
+            },
+            "require": {
+                "mageplaza/module-core": "^1.3.13"
+            },
+            "default-branch": true,
+            "type": "magento2-language",
+            "autoload": {
+                "files": [
+                    "registration.php"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Mageplaza team",
+                    "email": "hi@mageplaza.com",
+                    "homepage": "https://www.mageplaza.com",
+                    "role": "Leader"
+                }
+            ],
+            "description": "Ukrainian language package for Magento 2",
+            "homepage": "https://www.mageplaza.com",
+            "support": {
+                "issues": "https://github.com/mageplaza/magento-2-ukrainian-language-pack/issues",
+                "source": "https://github.com/mageplaza/magento-2-ukrainian-language-pack/tree/master"
+            },
+            "time": "2022-02-22T09:05:23+00:00"
+        },
+        {
+            "name": "mageplaza/module-core",
+            "version": "1.5.19",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/mageplaza/module-core.git",
+                "reference": "2921d2d142e05f655ee3acbe45e9fdab8fbad729"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/mageplaza/module-core/zipball/2921d2d142e05f655ee3acbe45e9fdab8fbad729",
+                "reference": "2921d2d142e05f655ee3acbe45e9fdab8fbad729",
+                "shasum": ""
+            },
+            "type": "magento2-module",
+            "autoload": {
+                "files": [
+                    "registration.php"
+                ],
+                "psr-4": {
+                    "Mageplaza\\Core\\": ""
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "proprietary"
+            ],
+            "authors": [
+                {
+                    "name": "Mageplaza",
+                    "email": "support@mageplaza.com",
+                    "homepage": "https://www.mageplaza.com",
+                    "role": "Technical Support"
+                }
+            ],
+            "description": "Mageplaza Core for Magento 2",
+            "support": {
+                "source": "https://github.com/mageplaza/module-core/tree/v1.5.19"
+            },
+            "time": "2026-08-07T08:41:52+00:00"
+        },
+        {
             "name": "marc-mabe/php-enum",
             "version": "v4.7.2",
             "source": {
@@ -19334,6 +19419,58 @@
                 "source": "https://github.com/marc-mabe/php-enum/tree/v4.7.2"
             },
             "time": "2025-09-14T11:18:39+00:00"
+        },
+        {
+            "name": "markshust/magento2-module-disabletwofactorauth",
+            "version": "2.0.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/markshust/magento2-module-disabletwofactorauth.git",
+                "reference": "4dbf2e3dfc380e26d93ca3aa4a4b8f98007e5d54"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/markshust/magento2-module-disabletwofactorauth/zipball/4dbf2e3dfc380e26d93ca3aa4a4b8f98007e5d54",
+                "reference": "4dbf2e3dfc380e26d93ca3aa4a4b8f98007e5d54",
+                "shasum": ""
+            },
+            "require": {
+                "magento/framework": "^103",
+                "php": "^7||^8"
+            },
+            "type": "magento2-module",
+            "autoload": {
+                "files": [
+                    "registration.php"
+                ],
+                "psr-4": {
+                    "MarkShust\\DisableTwoFactorAuth\\": ""
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "The DisableTwoFactorAuth module provides the ability to disable two-factor authentication.",
+            "keywords": [
+                "2fa",
+                "Authentication",
+                "dev",
+                "magento",
+                "magento2",
+                "two-factor"
+            ],
+            "support": {
+                "issues": "https://github.com/markshust/magento2-module-disabletwofactorauth/issues",
+                "source": "https://github.com/markshust/magento2-module-disabletwofactorauth/tree/2.0.2"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/markshust",
+                    "type": "github"
+                }
+            ],
+            "time": "2024-11-05T17:01:33+00:00"
         },
         {
             "name": "monolog/monolog",
@@ -27172,16 +27309,16 @@
         },
         {
             "name": "friendsofphp/php-cs-fixer",
-            "version": "v3.95.22",
+            "version": "v3.95.23",
             "source": {
                 "type": "git",
                 "url": "https://github.com/PHP-CS-Fixer/PHP-CS-Fixer.git",
-                "reference": "482722e0783c16325a07a998a0d9eda560f9be99"
+                "reference": "b2932a5af3157a0c28324b1efe5e3b556dee09c4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/PHP-CS-Fixer/PHP-CS-Fixer/zipball/482722e0783c16325a07a998a0d9eda560f9be99",
-                "reference": "482722e0783c16325a07a998a0d9eda560f9be99",
+                "url": "https://api.github.com/repos/PHP-CS-Fixer/PHP-CS-Fixer/zipball/b2932a5af3157a0c28324b1efe5e3b556dee09c4",
+                "reference": "b2932a5af3157a0c28324b1efe5e3b556dee09c4",
                 "shasum": ""
             },
             "require": {
@@ -27264,7 +27401,7 @@
             ],
             "support": {
                 "issues": "https://github.com/PHP-CS-Fixer/PHP-CS-Fixer/issues",
-                "source": "https://github.com/PHP-CS-Fixer/PHP-CS-Fixer/tree/v3.95.22"
+                "source": "https://github.com/PHP-CS-Fixer/PHP-CS-Fixer/tree/v3.95.23"
             },
             "funding": [
                 {
@@ -27272,7 +27409,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-08-24T10:37:43+00:00"
+            "time": "2026-08-26T19:54:54+00:00"
         },
         {
             "name": "laminas/laminas-diactoros",
@@ -27572,58 +27709,6 @@
                 "source": "https://github.com/PHPCompatibility/PHPCompatibility"
             },
             "time": "2023-11-29T22:34:17+00:00"
-        },
-        {
-            "name": "markshust/magento2-module-disabletwofactorauth",
-            "version": "2.0.2",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/markshust/magento2-module-disabletwofactorauth.git",
-                "reference": "4dbf2e3dfc380e26d93ca3aa4a4b8f98007e5d54"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/markshust/magento2-module-disabletwofactorauth/zipball/4dbf2e3dfc380e26d93ca3aa4a4b8f98007e5d54",
-                "reference": "4dbf2e3dfc380e26d93ca3aa4a4b8f98007e5d54",
-                "shasum": ""
-            },
-            "require": {
-                "magento/framework": "^103",
-                "php": "^7||^8"
-            },
-            "type": "magento2-module",
-            "autoload": {
-                "files": [
-                    "registration.php"
-                ],
-                "psr-4": {
-                    "MarkShust\\DisableTwoFactorAuth\\": ""
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "description": "The DisableTwoFactorAuth module provides the ability to disable two-factor authentication.",
-            "keywords": [
-                "2fa",
-                "Authentication",
-                "dev",
-                "magento",
-                "magento2",
-                "two-factor"
-            ],
-            "support": {
-                "issues": "https://github.com/markshust/magento2-module-disabletwofactorauth/issues",
-                "source": "https://github.com/markshust/magento2-module-disabletwofactorauth/tree/2.0.2"
-            },
-            "funding": [
-                {
-                    "url": "https://github.com/markshust",
-                    "type": "github"
-                }
-            ],
-            "time": "2024-11-05T17:01:33+00:00"
         },
         {
             "name": "mustache/mustache",
@@ -30621,6 +30706,7 @@
     "minimum-stability": "stable",
     "stability-flags": {
         "magento/composer": 10,
+        "mageplaza/magento-2-ukrainian-language-pack": 20,
         "pdepend/pdepend": 20,
         "phpmd/phpmd": 20
     },

@@ -41,7 +41,9 @@
         "magento/module-widget-sample-data": "100.4.*",
         "magento/module-wishlist-sample-data": "100.4.*",
         "magento/product-community-edition": "2.4.9",
-        "magento/sample-data-media": "100.4.*"
+        "magento/sample-data-media": "100.4.*",
+        "mageplaza/magento-2-ukrainian-language-pack": "dev-master",
+        "markshust/magento2-module-disabletwofactorauth": "^2.0"
     },
     "autoload": {
         "exclude-from-classmap": [
@@ -72,7 +74,6 @@
         "friendsofphp/php-cs-fixer": "^3.22",
         "magento/magento-coding-standard": "*",
         "magento/magento2-functional-testing-framework": "^6.0",
-        "markshust/magento2-module-disabletwofactorauth": "^2.0",
         "pdepend/pdepend": "^3@dev",
         "phpmd/phpmd": "^3@dev",
         "phpstan/phpstan": "^1.9",
