@@ -140,11 +140,16 @@ paths in your nginx `server {}` block (see §1.7).
 cp /srv/legal/repo/deploy/nginx-host/snippets/*.snippet /etc/nginx/snippets/
 
 # Create a vhost for your domain (copy and edit the example)
+cp /srv/legal/repo/deploy/nginx-host/snippets/*.snippet /etc/nginx/snippets/
 cp /srv/legal/repo/deploy/nginx-host/sites-enabled/store.conf.example \
-   /etc/nginx/sites-enabled/yourdomain.com.conf
+   /etc/nginx/sites-available/yourdomain.com.conf
 
 # Edit: set server_name and ssl_certificate / ssl_certificate_key
-nano /etc/nginx/sites-enabled/yourdomain.com.conf
+nano /etc/nginx/sites-available/yourdomain.com.conf
+
+# Enable via symlink (Debian/Ubuntu convention)
+ln -s /etc/nginx/sites-available/yourdomain.com.conf \
+      /etc/nginx/sites-enabled/yourdomain.com.conf
 
 # Disable the default vhost, test, reload
 rm -f /etc/nginx/sites-enabled/default
@@ -503,8 +508,10 @@ store by the `Host` header passed through the proxy chain.
 
    ```bash
    cp /srv/legal/repo/deploy/nginx-host/sites-enabled/store.conf.example \
-      /etc/nginx/sites-enabled/newdomain.com.conf
+      /etc/nginx/sites-available/newdomain.com.conf
    # Edit server_name and ssl_certificate paths
+   ln -s /etc/nginx/sites-available/newdomain.com.conf \
+         /etc/nginx/sites-enabled/newdomain.com.conf
    nginx -t && systemctl reload nginx
    ```
 

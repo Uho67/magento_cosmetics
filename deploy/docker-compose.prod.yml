@@ -107,7 +107,7 @@ services:
       MYSQL_USER: ${DB_USER}
       MYSQL_PASSWORD: ${DB_PASSWORD}
     command:
-      - mysqld
+      - mariadbd
       - --max_allowed_packet=1024M
       - --explicit_defaults_for_timestamp=on
       - --innodb_buffer_pool_size=512M
@@ -131,7 +131,6 @@ services:
     environment:
       - discovery.type=single-node
       - OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g
-      - plugins.security.disabled=true
       - DISABLE_SECURITY_PLUGIN=true
     ulimits:
       memlock: { soft: -1, hard: -1 }
