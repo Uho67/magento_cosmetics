@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+# deploy-server.sh — build and deploy Magento directly on the VPS
+#
+# Run as the deploy user on the server:
+#   cd /srv/legal/repo && ./scripts/deploy-server.sh
+
+set -euo pipefail
+IFS=$'\n\t'
+
+DEPLOY_PATH="/srv/legal"
+REPO_DIR="$DEPLOY_PATH/repo"
+COMPOSE="docker compose -f $REPO_DIR/deploy/docker-compose.prod.yml --env-file $DEPLOY_PATH/.env.prod"
+BUILD_IMAGE="wardenenv/php-fpm:8.4-magento2"
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+LOCALES="en_US"
+
+NEW="$DEPLOY_PATH/builds/new"
+CURRENT="$DEPLOY_PATH/builds/current"
+ARCHIVE_STORE="$DEPLOY_PATH/builds/archive"
+
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
+step() { echo -e "\n${CYAN}▶ $*${NC}"; }
+ok()   { echo -e "${GREEN}  ✓ $*${NC}"; }
+die()  { echo -e "${RED}  ✗ $*${NC}" >&2; exit 1; }
+
+[[ ! -f "$DEPLOY_PATH/auth.json" ]]  && die "auth.json not found at $DEPLOY_PATH/auth.json"
+[[ ! -f "$DEPLOY_PATH/shared/env.php" ]] && die "shared/env.php not found — run setup:install first"
+
+echo -e "\n${GREEN}╔══════════════════════════════════════════════╗"
+echo    "║  Magento server deploy — $TIMESTAMP"
+echo -e "╚══════════════════════════════════════════════╝${NC}"
+
+# ── Step 1: Pull latest code ──────────────────────────────────────────────────
+step "1/6 — git pull"
+git -C "$REPO_DIR" pull
+ok "$(git -C "$REPO_DIR" rev-parse --short HEAD)"
+
+# ── Step 2: Export clean source ───────────────────────────────────────────────
+step "2/6 — Export clean source from git"
+rm -rf "$NEW"
+mkdir -p "$NEW"
+git -C "$REPO_DIR" archive HEAD | tar -x -C "$NEW"
+ok "Source exported to $NEW"
+
+# ── Step 3: composer install + di:compile ─────────────────────────────────────
+step "3/6 — composer install --no-dev + setup:di:compile"
+
+mkdir -p "$DEPLOY_PATH/shared/composer-cache"
+
+docker run --rm \
+  -v "$NEW:/app" \
+  -v "$DEPLOY_PATH/shared/composer-cache:/root/.composer/cache" \
+  -e COMPOSER_AUTH="$(cat "$DEPLOY_PATH/auth.json")" \
+  -w /app \
+  "$BUILD_IMAGE" bash -c "
+    set -euo pipefail
+
+    echo '--- composer install --no-dev ---'
+    composer install --no-dev --no-interaction --optimize-autoloader --prefer-dist
+
+    echo '--- Enable 2FA for production ---'
+    php bin/magento module:enable \
+      Magento_TwoFactorAuth Magento_AdminAdobeImsTwoFactorAuth \
+      --no-backup 2>/dev/null || true
+    php bin/magento module:disable \
+      MarkShust_DisableTwoFactorAuth \
+      --no-backup 2>/dev/null || true
+
+    echo '--- setup:di:compile ---'
+    php bin/magento setup:di:compile
+  "
+ok "Build complete"
+
+# ── Step 4: Copy shared env.php ───────────────────────────────────────────────
+step "4/6 — Link shared env.php"
+mkdir -p "$NEW/app/etc" "$NEW/var"
+cp "$DEPLOY_PATH/shared/env.php" "$NEW/app/etc/env.php"
+ok "env.php in place"
+
+# ── Step 5: setup:upgrade + static:deploy (needs live DB) ─────────────────────
+step "5/6 — setup:upgrade + setup:static-content:deploy"
+
+docker run --rm \
+  --network legal_internal \
+  -v "$NEW:/var/www/html" \
+  -v "$DEPLOY_PATH/shared/media:/var/www/html/pub/media" \
+  -v "$DEPLOY_PATH/shared/logs:/var/www/html/var/log" \
+  -e MAGE_MODE=production \
+  "$BUILD_IMAGE" \
+  php /var/www/html/bin/magento setup:upgrade --keep-generated
+ok "setup:upgrade done"
+
+docker run --rm \
+  --network legal_internal \
+  -v "$NEW:/var/www/html" \
+  -v "$DEPLOY_PATH/shared/media:/var/www/html/pub/media" \
+  -v "$DEPLOY_PATH/shared/logs:/var/www/html/var/log" \
+  -e MAGE_MODE=production \
+  "$BUILD_IMAGE" \
+  php /var/www/html/bin/magento setup:static-content:deploy -f $LOCALES --no-interaction
+ok "static-content:deploy done"
+
+# ── Step 6: Swap builds + restart ─────────────────────────────────────────────
+step "6/6 — Swap builds and restart"
+
+mkdir -p "$ARCHIVE_STORE"
+if [[ -d "$CURRENT" ]]; then
+  mv "$CURRENT" "$ARCHIVE_STORE/${TIMESTAMP}-prev"
+  ln -sfn "$ARCHIVE_STORE/${TIMESTAMP}-prev" "$DEPLOY_PATH/builds/previous" 2>/dev/null || true
+fi
+mv "$NEW" "$CURRENT"
+ok "Build swapped → current"
+
+$COMPOSE restart php-fpm nginx cron
+ok "Containers restarted"
+
+$COMPOSE exec -T php-fpm php bin/magento cache:flush
+ok "Cache flushed"
+
+# Prune old archives (keep 3)
+ls -dt "$ARCHIVE_STORE"/*-prev 2>/dev/null | tail -n +4 | xargs rm -rf 2>/dev/null || true
+
+echo -e "\n${GREEN}  Deploy $TIMESTAMP complete!${NC}"
+echo    "  Rollback: ./scripts/rollback-server.sh"
