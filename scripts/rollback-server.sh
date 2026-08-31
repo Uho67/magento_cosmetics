@@ -8,7 +8,7 @@ set -euo pipefail
 
 DEPLOY_PATH="/srv/legal"
 REPO_DIR="$DEPLOY_PATH/repo"
-COMPOSE="docker compose -f $REPO_DIR/deploy/docker-compose.prod.yml --env-file $DEPLOY_PATH/.env.prod"
+COMPOSE=(docker compose -f "$REPO_DIR/deploy/docker-compose.prod.yml" --env-file "$DEPLOY_PATH/.env.prod")
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
 ok()  { echo -e "${GREEN}  ✓ $*${NC}"; }
@@ -26,10 +26,10 @@ ROLLBACK_SAVE="$DEPLOY_PATH/builds/rollback-$(date +%Y%m%d_%H%M%S)"
 mv "$CURRENT" "$ROLLBACK_SAVE"
 cp -a "$PREV_REAL" "$CURRENT"
 
-$COMPOSE restart php-fpm nginx cron
+"${COMPOSE[@]}" restart php-fpm nginx cron
 ok "Containers restarted"
 
-$COMPOSE exec -T php-fpm php bin/magento cache:flush
+"${COMPOSE[@]}" exec -T php-fpm php bin/magento cache:flush
 ok "Cache flushed"
 
 echo -e "\n${GREEN}  Rollback complete.${NC}"

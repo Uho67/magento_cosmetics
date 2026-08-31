@@ -9,7 +9,7 @@ IFS=$'\n\t'
 
 DEPLOY_PATH="/srv/legal"
 REPO_DIR="$DEPLOY_PATH/repo"
-COMPOSE="docker compose -f $REPO_DIR/deploy/docker-compose.prod.yml --env-file $DEPLOY_PATH/.env.prod"
+COMPOSE=(docker compose -f "$REPO_DIR/deploy/docker-compose.prod.yml" --env-file "$DEPLOY_PATH/.env.prod")
 BUILD_IMAGE="wardenenv/php-fpm:8.4-magento2"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 LOCALES="en_US"
@@ -111,10 +111,10 @@ fi
 mv "$NEW" "$CURRENT"
 ok "Build swapped → current"
 
-$COMPOSE restart php-fpm nginx cron
+"${COMPOSE[@]}" restart php-fpm nginx cron
 ok "Containers restarted"
 
-$COMPOSE exec -T php-fpm php bin/magento cache:flush
+"${COMPOSE[@]}" exec -T php-fpm php bin/magento cache:flush
 ok "Cache flushed"
 
 # Prune old archives (keep 3)
