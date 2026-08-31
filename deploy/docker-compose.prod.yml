@@ -178,7 +178,6 @@ services:
 networks:
   internal:
     name: legal_internal
-    internal: true
 
 ##############################################################################
 volumes:
