@@ -52,6 +52,11 @@ sub vcl_recv {
         return (pass);
     }
 
+    # Never cache admin, REST API, or GraphQL — pass directly to backend
+    if (req.url ~ "^/d2_Dmin" || req.url ~ "^/rest/" || req.url ~ "^/graphql") {
+        return (pass);
+    }
+
     # Pass if customer is logged in or has items in cart
     if (req.http.cookie ~ "PHPSESSID=" ||
         req.http.cookie ~ "customer" ||
@@ -114,8 +119,11 @@ sub vcl_backend_response {
         return (deliver);
     }
 
-    # Strip Set-Cookie for cacheable responses (anonymous users)
-    if (beresp.http.Cache-Control !~ "private") {
+    # Strip Set-Cookie for cacheable responses (anonymous users), but never for admin/API
+    if (beresp.http.Cache-Control !~ "private" &&
+        bereq.url !~ "^/d2_Dmin" &&
+        bereq.url !~ "^/rest/" &&
+        bereq.url !~ "^/graphql") {
         unset beresp.http.Set-Cookie;
     }
 
