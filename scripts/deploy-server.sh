@@ -117,6 +117,12 @@ ok "Containers restarted"
 "${COMPOSE[@]}" exec -T php-fpm php bin/magento cache:flush
 ok "Cache flushed"
 
+VCL_LABEL="vcl_${TIMESTAMP}"
+docker cp "$REPO_DIR/deploy/varnish/default.vcl" legal-varnish-1:/etc/varnish/default.vcl
+docker exec legal-varnish-1 varnishadm vcl.load "$VCL_LABEL" /etc/varnish/default.vcl
+docker exec legal-varnish-1 varnishadm vcl.use "$VCL_LABEL"
+ok "Varnish VCL reloaded ($VCL_LABEL)"
+
 # Prune old archives (keep 3)
 ls -dt "$ARCHIVE_STORE"/*-prev 2>/dev/null | tail -n +4 | xargs rm -rf 2>/dev/null || true
 
