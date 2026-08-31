@@ -10,6 +10,8 @@ Browser
                     └─▶ Docker PHP-FPM :9000 (Magento application)
 
 MariaDB, OpenSearch, Valkey, RabbitMQ — internal Docker network, no public ports.
+
+phpMyAdmin 127.0.0.1:8080 — internal only, access via SSH tunnel (see Part 9).
 ```
 
 **Code is not baked into Docker images.** Containers mount the active build from
@@ -566,3 +568,50 @@ php bin/magento module:disable MarkShust_DisableTwoFactorAuth
 This overwrites the `Magento_TwoFactorAuth=0` entry that the module writes to
 `app/etc/config.php` during local development, ensuring 2FA is **always active
 in production** regardless of what is committed in `config.php`.
+
+---
+
+## Part 9 — phpMyAdmin (DB admin UI)
+
+phpMyAdmin runs as a Docker service (`phpmyadmin`) but is **never exposed to the
+public internet**. It binds to `127.0.0.1:8080` on the VPS only.
+
+### 9.1 Access via SSH tunnel
+
+Open a tunnel from your local Mac:
+
+```bash
+ssh -L 8080:127.0.0.1:8080 deploy@your-vps-ip
+```
+
+Then open `http://localhost:8080` in your browser.
+
+Login:
+- **Server:** `db` (pre-configured via `PMA_HOST`)
+- **Username:** `root`
+- **Password:** value of `DB_ROOT_PASSWORD` from `/srv/legal/.env.prod`
+
+> The tunnel forwards your local port 8080 to the VPS's loopback port 8080.
+> The connection is encrypted inside your SSH session — no additional TLS needed.
+
+### 9.2 Start / stop the service
+
+The service starts automatically with the rest of the stack. To manage it
+independently:
+
+```bash
+COMPOSE="docker compose -f /srv/legal/repo/deploy/docker-compose.prod.yml --env-file /srv/legal/.env.prod"
+
+$COMPOSE up -d phpmyadmin      # start
+$COMPOSE stop phpmyadmin       # stop (data unaffected)
+$COMPOSE logs -f phpmyadmin    # view logs
+```
+
+### 9.3 Security notes
+
+- `127.0.0.1:8080` is **not** opened in `ufw` — the port is inaccessible without
+  an SSH session.
+- phpMyAdmin logs in as `root` and has full access to all databases. Do not share
+  your SSH key or the tunnel with untrusted parties.
+- If you don't need phpMyAdmin running continuously, stop it after use:
+  `$COMPOSE stop phpmyadmin`.

@@ -92,6 +92,25 @@ services:
       done"
 
   ##############################################################################
+  # phpMyAdmin — DB admin UI (bind to localhost only; access via SSH tunnel)
+  ##############################################################################
+  phpmyadmin:
+    image: phpmyadmin:5-apache
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - internal
+    ports:
+      - "127.0.0.1:8080:80"
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      UPLOAD_LIMIT: 256M
+
+  ##############################################################################
   # MariaDB 11.4
   ##############################################################################
   db:

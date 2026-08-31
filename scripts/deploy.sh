@@ -166,7 +166,7 @@ docker run --rm \
   php /var/www/html/bin/magento setup:upgrade --keep-generated
 echo "setup:upgrade OK"
 
-echo "--- Running setup:static-content:deploy against new build (needs live DB) ---"
+echo "--- setup:static-content:deploy (frontend) ---"
 docker run --rm \
   --network legal_internal \
   --platform linux/amd64 \
@@ -175,8 +175,20 @@ docker run --rm \
   -v "$DEPLOY_PATH/shared/logs:/var/www/html/var/log" \
   -e MAGE_MODE=production \
   wardenenv/php-fpm:8.4-magento2 \
-  php /var/www/html/bin/magento setup:static-content:deploy -f $LOCALES --no-interaction
-echo "static-content:deploy OK"
+  php /var/www/html/bin/magento setup:static-content:deploy -f $LOCALES --area frontend --no-interaction
+echo "frontend static-content:deploy OK"
+
+echo "--- setup:static-content:deploy (adminhtml) ---"
+docker run --rm \
+  --network legal_internal \
+  --platform linux/amd64 \
+  -v "$NEW:/var/www/html" \
+  -v "$DEPLOY_PATH/shared/media:/var/www/html/pub/media" \
+  -v "$DEPLOY_PATH/shared/logs:/var/www/html/var/log" \
+  -e MAGE_MODE=production \
+  wardenenv/php-fpm:8.4-magento2 \
+  php /var/www/html/bin/magento setup:static-content:deploy -f $LOCALES --area adminhtml --no-interaction
+echo "adminhtml static-content:deploy OK"
 
 echo "--- Archiving current build (for rollback history) ---"
 mkdir -p "$ARCHIVE_STORE"
