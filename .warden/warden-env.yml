@@ -1,4 +1,4 @@
-45015# .warden/warden-env.yml — Docker Compose overrides merged on top of Warden's
+# .warden/warden-env.yml — Docker Compose overrides merged on top of Warden's
 # built-in magento2 service definitions.
 # Docs: https://docs.warden.dev/configuration/customizing-env.html
 

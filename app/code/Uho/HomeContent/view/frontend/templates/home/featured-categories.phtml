@@ -1,0 +1,9 @@
+<?php
+/** @var \Magento\Framework\View\Element\Template $block */
+?>
+<section class="home-categories">
+    <h2 class="home-categories__heading"><?= $block->escapeHtml(__('Оберіть свою категорію')) ?></h2>
+    <div class="home-categories__grid">
+        <?= /* @noEscape */ $block->getChildHtml('content') ?>
+    </div>
+</section>

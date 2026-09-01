@@ -1,0 +1,255 @@
+//
+//  Сіємо разом — homepage sections (hero, featured categories, trust
+//  badges, newsletter). Imported from _theme.less.
+//  _____________________________________________
+
+//
+//  Hero banner
+//  ---------------------------------------------
+//
+//  No photography exists yet (see BRAND_GUIDE.md guardrails), so the banner
+//  ships as a CSS gradient placeholder in the brand palette rather than a
+//  fixed image. Concept for the real photo once shot: a wide-angle shot of
+//  raised garden beds / seedling trays at golden-hour light, framed so the
+//  right two-thirds carry the image and the left third stays open and dark
+//  enough for the headline to stay legible - swap it in as
+//  `background-image` on `.home-hero` at the @screen__l breakpoint below
+//  (mobile/tablet keep the gradient, it isn't wide enough there to earn a
+//  photo crop).
+
+.home-hero {
+    position: relative;
+    overflow: hidden;
+    padding: 48px @indent__base;
+    background: linear-gradient(135deg, darken(@page__background-color, 4%) 0%, @page__background-color 55%, lighten(@theme__color__secondary, 26%) 100%);
+
+    &::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at 85% 20%, fade(@theme__color__primary, 12%) 0%, transparent 45%),
+            radial-gradient(circle at 10% 90%, fade(@theme__color__primary-alt, 10%) 0%, transparent 40%);
+        pointer-events: none;
+    }
+}
+
+.home-hero__inner {
+    position: relative;
+    z-index: 1;
+    max-width: 640px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.home-hero__title {
+    margin: 0 0 12px;
+    font-size: 32px;
+}
+
+.home-hero__subtitle {
+    margin: 0 0 24px;
+    color: @primary__color;
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+.home-hero__cta {
+    display: inline-block;
+}
+
+@media (min-width: @screen__m) {
+    .home-hero {
+        padding: 64px @indent__l;
+    }
+
+    .home-hero__title {
+        font-size: 40px;
+    }
+}
+
+@media (min-width: @screen__l) {
+    .home-hero {
+        padding: 96px @indent__xl;
+        text-align: left;
+    }
+
+    .home-hero__inner {
+        margin: 0;
+        max-width: 520px;
+        text-align: left;
+    }
+
+    .home-hero__title {
+        font-size: 48px;
+    }
+}
+
+//
+//  Featured categories
+//  ---------------------------------------------
+
+.home-categories {
+    padding: 40px @indent__base;
+    text-align: center;
+}
+
+.home-categories__heading {
+    margin: 0 0 24px;
+}
+
+.home-categories__grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    max-width: 1040px;
+    margin: 0 auto;
+}
+
+.home-categories__tile {
+    display: block;
+    padding: 28px 20px;
+    border-radius: 10px;
+    border: 1px solid @border-color__base;
+    background: @color-white;
+    color: @primary__color;
+    text-decoration: none;
+    transition: box-shadow .2s ease, transform .2s ease, border-color .2s ease;
+
+    &:hover,
+    &:focus {
+        border-color: @theme__color__primary;
+        box-shadow: 0 6px 18px rgba(42, 38, 32, .12);
+        transform: translateY(-2px);
+    }
+}
+
+.home-categories__title {
+    display: block;
+    margin-bottom: 8px;
+    color: @theme__color__primary;
+    font-family: @font-family-name__display, @font-family__sans-serif;
+    font-size: 20px;
+    font-weight: @font-weight__bold;
+}
+
+.home-categories__desc {
+    display: block;
+    color: @primary__color__lighter;
+    font-size: 14px;
+}
+
+@media (min-width: @screen__m) {
+    .home-categories__grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+//
+//  Trust badges strip
+//  ---------------------------------------------
+
+.trust-badges {
+    padding: 32px @indent__base;
+    background: darken(@page__background-color, 3%);
+}
+
+.trust-badges__grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+    max-width: 1040px;
+    margin: 0 auto;
+}
+
+.trust-badges__item {
+    padding-top: 16px;
+    border-top: 3px solid @theme__color__secondary;
+    text-align: center;
+}
+
+.trust-badges__title {
+    display: block;
+    margin-bottom: 6px;
+    color: @primary__color;
+    font-weight: @font-weight__bold;
+}
+
+.trust-badges__desc {
+    display: block;
+    color: @primary__color__lighter;
+    font-size: 13px;
+}
+
+@media (min-width: @screen__m) {
+    .trust-badges__grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+//
+//  Newsletter
+//  ---------------------------------------------
+
+.home-newsletter {
+    padding: 48px @indent__base;
+    background: @theme__color__primary;
+    color: @color-white;
+    text-align: center;
+}
+
+.home-newsletter__inner {
+    max-width: 520px;
+    margin: 0 auto;
+}
+
+.home-newsletter__title {
+    margin: 0 0 8px;
+    color: @color-white;
+}
+
+.home-newsletter__subtitle {
+    margin: 0 0 20px;
+    color: fade(@color-white, 85%);
+}
+
+//  The native Magento_Newsletter block ships its own "Newsletter" heading;
+//  our CMS intro block above already carries that heading, so hide the
+//  duplicate rather than fork the template.
+.home-newsletter .block.newsletter {
+    .title {
+        display: none;
+    }
+
+    .field.newsletter .label {
+        color: @color-white;
+    }
+
+    .content form.subscribe {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .field.newsletter {
+        flex: 1 1 260px;
+        text-align: left;
+    }
+
+    input#newsletter {
+        width: 100%;
+    }
+
+    .actions .action.subscribe {
+        border-radius: @button__border-radius;
+        background: @theme__color__secondary;
+        border-color: @theme__color__secondary;
+        color: @primary__color;
+
+        &:hover {
+            background: darken(@theme__color__secondary, 8%);
+            border-color: darken(@theme__color__secondary, 8%);
+        }
+    }
+}

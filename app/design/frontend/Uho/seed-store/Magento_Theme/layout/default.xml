@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+    <head>
+        <!-- Comfortaa (headings) + PT Sans (body) - see docs/BRAND_GUIDE.md -->
+        <css src="https://fonts.googleapis.com/css2?family=Comfortaa:wght@700&amp;family=PT+Sans:wght@400;700&amp;display=swap" src_type="url"/>
+    </head>
+    <body>
+        <referenceBlock name="logo">
+            <arguments>
+                <!--
+                    logo.svg lives at web/images/logo.svg and is picked up automatically
+                    by Magento\Theme\Block\Html\Header\Logo's default file fallback -
+                    no explicit "logo_file" argument needed. Width/height here are the
+                    intrinsic display size for the SVG lockup (source aspect ratio
+                    798.5 x 183, see docs/BRAND_GUIDE.md); being SVG, no @2x variant
+                    is required for retina displays.
+                -->
+                <argument name="logo_width" xsi:type="number">220</argument>
+                <argument name="logo_height" xsi:type="number">50</argument>
+                <argument name="logo_alt" xsi:type="string">Сіємо разом</argument>
+            </arguments>
+        </referenceBlock>
+    </body>
+</page>

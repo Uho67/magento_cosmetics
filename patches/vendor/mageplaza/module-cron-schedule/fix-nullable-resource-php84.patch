@@ -1,0 +1,14 @@
+--- a/Model/Job.php
++++ b/Model/Job.php
+@@ -78,8 +78,8 @@ class Job extends AbstractModel
+     public function __construct(
+         Context $context,
+         Registry $registry,
+         Data $helper,
+         ValueFactory $valueFactory,
+-        AbstractResource $resource = null,
+-        AbstractDb $resourceCollection = null,
++        ?AbstractResource $resource = null,
++        ?AbstractDb $resourceCollection = null,
+         array $data = []
+     ) {

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 124 124" width="124" height="124">
+
+  <g transform="translate(12,12)" fill="#2F5233">
+    <path d="M44,92 a7,5 0 1,0 14,0 a7,5 0 1,0 -14,0 Z M51,86 C51,70 49,55 50,42 C50.5,38 51,35 52,32 M50,58 C38,56 26,50 20,38 C34,36 46,42 50,54 C50,55 50,57 50,58 Z M52,44 C64,40 74,32 78,20 C66,20 54,26 51,38 C50.5,40 51,42 52,44 Z" fill="#2F5233" stroke="#2F5233" stroke-width="1.5" stroke-linejoin="round"/>
+  </g>
+</svg>

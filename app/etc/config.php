@@ -380,6 +380,7 @@ return [
         'Magento_WishlistGraphQl' => 1,
         'Magento_WishlistSampleData' => 1,
         'Mageplaza_Core' => 1,
+        'Mageplaza_CronSchedule' => 1,
         'MarkShust_DisableTwoFactorAuth' => 1,
         'PayPal_Braintree' => 1,
         'PayPal_BraintreeCustomerBalance' => 1,
@@ -389,6 +390,10 @@ return [
         'PayPal_BraintreeGraphQl' => 1,
         'PayPal_BraintreeReward' => 1,
         'Perspective_NovaposhtaCatalog' => 1,
+        'Uho_Catalog' => 1,
+        'Uho_HomeContent' => 1,
+        'Uho_NovaposhtaShipping' => 1,
+        'Uho_NovaposhtaCheckout' => 1,
         'Uho_Store' => 1
     ]
 ];

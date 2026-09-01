@@ -1,0 +1,13 @@
+<!--
+Read-only replacement for the standard rate table (decision #3, docs/novaposhta-checkout-architecture.md
+§5 A5). Nova Poshta is the only active carrier, so a selectable list would just be one disabled
+radio; this renders the auto-selected method as a plain line instead. The "Next" button and its
+`setShippingInformation` submit / validation are untouched.
+-->
+<div class="uho-np-shipping-method" data-bind="visible: rates().length">
+    <!-- ko if: rates()[0] -->
+    <span class="uho-np-shipping-method-label" translate="'Delivery method'"></span>:
+    <span class="uho-np-shipping-method-value"
+          data-bind="text: rates()[0]['carrier_title'] + ' — ' + rates()[0]['method_title']"></span>
+    <!-- /ko -->
+</div>

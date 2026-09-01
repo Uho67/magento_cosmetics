@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:DataObject/etc/fieldset.xsd">
+    <scope id="global">
+        <fieldset id="sales_convert_quote_address">
+            <field name="uho_np_city_ref">
+                <aspect name="to_order_address"/>
+            </field>
+            <field name="uho_np_city_name">
+                <aspect name="to_order_address"/>
+            </field>
+            <field name="uho_np_warehouse_ref">
+                <aspect name="to_order_address"/>
+            </field>
+            <field name="uho_np_warehouse_name">
+                <aspect name="to_order_address"/>
+            </field>
+            <field name="uho_np_warehouse_site_key">
+                <aspect name="to_order_address"/>
+            </field>
+        </fieldset>
+    </scope>
+</config>

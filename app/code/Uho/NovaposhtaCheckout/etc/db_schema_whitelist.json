@@ -1,0 +1,23 @@
+{
+    "quote_address": {
+        "column": {
+            "uho_np_city_ref": true,
+            "uho_np_city_name": true,
+            "uho_np_warehouse_ref": true,
+            "uho_np_warehouse_name": true,
+            "uho_np_warehouse_site_key": true
+        }
+    },
+    "sales_order_address": {
+        "column": {
+            "uho_np_city_ref": true,
+            "uho_np_city_name": true,
+            "uho_np_warehouse_ref": true,
+            "uho_np_warehouse_name": true,
+            "uho_np_warehouse_site_key": true
+        },
+        "index": {
+            "SALES_ORDER_ADDRESS_UHO_NP_WAREHOUSE_REF": true
+        }
+    }
+}

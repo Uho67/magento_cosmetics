@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+    <body>
+        <referenceContainer name="product.info.main">
+            <block class="Magento\Catalog\Block\Product\View"
+                   name="product.info.seed-attributes"
+                   template="Uho_Catalog::product/seed-attributes.phtml"
+                   after="product.price.tier">
+                <arguments>
+                    <argument name="seedAttributesViewModel" xsi:type="object">Uho\Catalog\ViewModel\SeedAttributes</argument>
+                </arguments>
+            </block>
+        </referenceContainer>
+    </body>
+</page>

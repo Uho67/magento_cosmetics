@@ -1,0 +1,33 @@
+<?php
+/**
+ * @var \Uho\NovaposhtaCheckout\Block\Adminhtml\Order\View\NovaposhtaInfo $block
+ */
+
+/** @var \Uho\NovaposhtaCheckout\ViewModel\Adminhtml\NovaposhtaOrderInfo $viewModel */
+$viewModel = $block->getViewModel();
+$order = $block->getOrder();
+$address = $order ? $viewModel->getNovaposhtaAddress($order) : null;
+?>
+<?php if ($address) : ?>
+<div class="admin__page-section-item order-novaposhta-info">
+    <div class="admin__page-section-item-title">
+        <span class="title"><?= $block->escapeHtml(__('Nova Poshta — Self-Pickup')) ?></span>
+    </div>
+    <div class="admin__page-section-item-content">
+        <table class="admin__table-secondary order-novaposhta-info-table">
+            <tr>
+                <th><?= $block->escapeHtml(__('City')) ?></th>
+                <td><?= $block->escapeHtml($viewModel->getCityName($address)) ?></td>
+            </tr>
+            <tr>
+                <th><?= $block->escapeHtml(__('Warehouse')) ?></th>
+                <td><?= $block->escapeHtml($viewModel->getWarehouseName($address)) ?></td>
+            </tr>
+            <tr>
+                <th><?= $block->escapeHtml(__('Warehouse Number')) ?></th>
+                <td><?= $block->escapeHtml($viewModel->getWarehouseSiteKey($address)) ?></td>
+            </tr>
+        </table>
+    </div>
+</div>
+<?php endif; ?>

@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+<!--
+Part A (silent shipping-method-list template) and Part B (np-city / np-warehouse selectors) —
+see docs/novaposhta-checkout-architecture.md §5 A5 and §6 B2. Field reduction (firstname,
+lastname, telephone kept; everything else hidden) is done in PHP by
+Block\Checkout\LayoutProcessor, registered via etc/frontend/di.xml, not here.
+-->
+<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+    <body>
+        <referenceBlock name="checkout.root">
+            <arguments>
+                <argument name="jsLayout" xsi:type="array">
+                    <item name="components" xsi:type="array">
+                        <item name="checkout" xsi:type="array">
+                            <item name="children" xsi:type="array">
+                                <item name="steps" xsi:type="array">
+                                    <item name="children" xsi:type="array">
+                                        <item name="shipping-step" xsi:type="array">
+                                            <item name="children" xsi:type="array">
+                                                <item name="shippingAddress" xsi:type="array">
+                                                    <item name="config" xsi:type="array">
+                                                        <!-- Decision #3: hide the rate table, keep the "Next" button. -->
+                                                        <item name="shippingMethodListTemplate" xsi:type="string">Uho_NovaposhtaCheckout/shipping-address/shipping-method-list-silent</item>
+                                                    </item>
+                                                    <item name="children" xsi:type="array">
+                                                        <item name="shipping-address-fieldset" xsi:type="array">
+                                                            <item name="children" xsi:type="array">
+                                                                <!--
+                                                                    sortOrder 121/122 places both fields right after telephone
+                                                                    (customer_address_edit form: telephone=120, fax=130).
+                                                                -->
+                                                                <item name="uho-np-city" xsi:type="array">
+                                                                    <item name="component" xsi:type="string">Uho_NovaposhtaCheckout/js/view/checkout/shipping/np-city</item>
+                                                                    <item name="sortOrder" xsi:type="string">121</item>
+                                                                </item>
+                                                                <item name="uho-np-warehouse" xsi:type="array">
+                                                                    <item name="component" xsi:type="string">Uho_NovaposhtaCheckout/js/view/checkout/shipping/np-warehouse</item>
+                                                                    <item name="sortOrder" xsi:type="string">122</item>
+                                                                </item>
+                                                            </item>
+                                                        </item>
+                                                    </item>
+                                                </item>
+                                            </item>
+                                        </item>
+                                    </item>
+                                </item>
+                            </item>
+                        </item>
+                    </item>
+                </argument>
+            </arguments>
+        </referenceBlock>
+    </body>
+</page>

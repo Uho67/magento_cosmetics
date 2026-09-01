@@ -1,0 +1,88 @@
+//
+// Nova Poshta checkout — silent shipping method line + city/warehouse typeahead selectors.
+// docs/novaposhta-checkout-architecture.md §5 A5, §6 B2.
+//
+
+//
+// §6 B4 (decision #1): billing is always forced to equal shipping
+// (js/model/billing-address-mixin.js), so the "My billing and shipping address are the same"
+// checkbox is pointless to show. `.billing-address-same-as-shipping-block` is the stable class
+// Magento_Checkout/billing-address.html renders it under (checkout-billing-address wrapper);
+// hiding it via CSS avoids a vendor template override.
+//
+.checkout-billing-address .billing-address-same-as-shipping-block {
+    display: none;
+}
+
+.uho-np-shipping-method {
+    padding: 10px 0;
+
+    &-label {
+        font-weight: 600;
+    }
+}
+
+.uho-np-field {
+    position: relative;
+}
+
+.uho-np-typeahead {
+    position: relative;
+}
+
+.uho-np-disabled {
+    opacity: .6;
+}
+
+.uho-np-suggestions {
+    background: #fff;
+    border: 1px solid #ccc;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, .15);
+    list-style: none;
+    margin: 0;
+    max-height: 260px;
+    overflow-y: auto;
+    padding: 0;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 100;
+
+    li {
+        cursor: pointer;
+        padding: 6px 10px;
+
+        &:hover {
+            background: #f4f4f4;
+        }
+    }
+}
+
+.uho-np-empty {
+    color: #666;
+    padding: 6px 0;
+}
+
+.uho-np-spinner {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+
+    &:after {
+        animation: uho-np-spin 0.6s linear infinite;
+        border: 2px solid #ccc;
+        border-top-color: #666;
+        border-radius: 50%;
+        content: '';
+        display: block;
+        height: 14px;
+        width: 14px;
+    }
+}
+
+@keyframes uho-np-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<schema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Setup/Declaration/Schema/etc/schema.xsd">
+    <table name="quote_address" resource="checkout" comment="Sales Flat Quote Address">
+        <column xsi:type="varchar" name="uho_np_city_ref" length="36" nullable="true"
+                comment="Nova Poshta City Ref"/>
+        <column xsi:type="varchar" name="uho_np_city_name" length="255" nullable="true"
+                comment="Nova Poshta City Name Snapshot"/>
+        <column xsi:type="varchar" name="uho_np_warehouse_ref" length="36" nullable="true"
+                comment="Nova Poshta Warehouse Ref"/>
+        <column xsi:type="varchar" name="uho_np_warehouse_name" length="255" nullable="true"
+                comment="Nova Poshta Warehouse Name Snapshot"/>
+        <column xsi:type="varchar" name="uho_np_warehouse_site_key" length="8" nullable="true"
+                comment="Nova Poshta Warehouse Site Key"/>
+    </table>
+    <table name="sales_order_address" resource="sales" comment="Sales Flat Order Address">
+        <column xsi:type="varchar" name="uho_np_city_ref" length="36" nullable="true"
+                comment="Nova Poshta City Ref"/>
+        <column xsi:type="varchar" name="uho_np_city_name" length="255" nullable="true"
+                comment="Nova Poshta City Name Snapshot"/>
+        <column xsi:type="varchar" name="uho_np_warehouse_ref" length="36" nullable="true"
+                comment="Nova Poshta Warehouse Ref"/>
+        <column xsi:type="varchar" name="uho_np_warehouse_name" length="255" nullable="true"
+                comment="Nova Poshta Warehouse Name Snapshot"/>
+        <column xsi:type="varchar" name="uho_np_warehouse_site_key" length="8" nullable="true"
+                comment="Nova Poshta Warehouse Site Key"/>
+        <index referenceId="SALES_ORDER_ADDRESS_UHO_NP_WAREHOUSE_REF" indexType="btree">
+            <column name="uho_np_warehouse_ref"/>
+        </index>
+    </table>
+</schema>

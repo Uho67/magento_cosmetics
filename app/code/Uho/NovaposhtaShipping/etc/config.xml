@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Store:etc/config.xsd">
+    <default>
+        <carriers>
+            <uho_novaposhta>
+                <active>1</active>
+                <model>Uho\NovaposhtaShipping\Model\Carrier\NovaposhtaManual</model>
+                <name>Самовивіз з відділення</name>
+                <title>Нова Пошта (самовивіз)</title>
+                <price>0.00</price>
+                <free_shipping_enable>0</free_shipping_enable>
+                <free_shipping_subtotal>0</free_shipping_subtotal>
+                <sallowspecific>1</sallowspecific>
+                <specificcountry>UA</specificcountry>
+                <showmethod>0</showmethod>
+                <specificerrmsg>Доставка Новою Поштою доступна лише в межах України.</specificerrmsg>
+                <sort_order>10</sort_order>
+            </uho_novaposhta>
+        </carriers>
+    </default>
+</config>

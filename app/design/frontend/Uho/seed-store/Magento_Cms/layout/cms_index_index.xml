@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<!--
+    Homepage structure for the "Сіємо разом" theme. Runs regardless of which
+    CMS page is configured as the store's home page (this handle fires for
+    the store-root request itself, not for viewing that CMS page by its own
+    URL key) - see docs/BRAND_GUIDE.md for the content/tone this wires up.
+
+    Content is CMS-block driven (Content > Blocks, identifiers below) so
+    copy/links/images can change without a deploy; this file only owns
+    section order and the responsive wrapper markup/CSS.
+-->
+<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+    <body>
+        <referenceContainer name="content">
+            <block class="Magento\Framework\View\Element\Template" name="home.hero" template="Uho_HomeContent::home/hero.phtml" after="-">
+                <block class="Magento\Cms\Block\Block" name="home.hero.content" as="content">
+                    <arguments>
+                        <argument name="block_id" xsi:type="string">home_hero_banner</argument>
+                    </arguments>
+                </block>
+            </block>
+            <block class="Magento\Framework\View\Element\Template" name="home.categories" template="Uho_HomeContent::home/featured-categories.phtml" after="home.hero">
+                <block class="Magento\Cms\Block\Block" name="home.categories.content" as="content">
+                    <arguments>
+                        <argument name="block_id" xsi:type="string">home_featured_categories</argument>
+                    </arguments>
+                </block>
+            </block>
+            <block class="Magento\Framework\View\Element\Template" name="home.trust" template="Uho_HomeContent::home/trust-badges.phtml" after="home.categories">
+                <block class="Magento\Cms\Block\Block" name="home.trust.content" as="content">
+                    <arguments>
+                        <argument name="block_id" xsi:type="string">home_trust_badges</argument>
+                    </arguments>
+                </block>
+            </block>
+            <block class="Magento\Framework\View\Element\Template" name="home.newsletter" template="Uho_HomeContent::home/newsletter.phtml" after="home.trust">
+                <block class="Magento\Cms\Block\Block" name="home.newsletter.intro" as="intro">
+                    <arguments>
+                        <argument name="block_id" xsi:type="string">home_newsletter_intro</argument>
+                    </arguments>
+                </block>
+                <block class="Magento\Newsletter\Block\Subscribe" name="home.newsletter.subscribe" as="subscribe" template="Magento_Newsletter::subscribe.phtml" ifconfig="newsletter/general/active"/>
+            </block>
+        </referenceContainer>
+    </body>
+</page>

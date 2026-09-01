@@ -15,8 +15,9 @@ phpMyAdmin 127.0.0.1:8080 — internal only, access via SSH tunnel (see Part 9).
 ```
 
 **Code is not baked into Docker images.** Containers mount the active build from
-the host filesystem (`/srv/legal/builds/current/`). The deploy script builds
-on your local Mac, ships a tarball, and swaps directories on the server.
+the host filesystem (`/srv/legal/builds/current/`). The deploy script runs
+directly on the server: it pulls the latest code from git, builds inside a
+Docker container, and swaps directories atomically.
 
 **Multi-store / multi-domain:** each domain gets its own `server {}` block in
 host nginx, all proxying to the same `127.0.0.1:6081`. Magento routes by `Host`
@@ -288,60 +289,44 @@ Visit `https://yourdomain.com` — you should see the Magento storefront.
 
 ## Part 2 — Routine code deploys
 
-All deploy steps run **on your local Mac**. The script handles everything
-remotely over SSH.
+All deploy steps run **on the server itself** — no Mac build required. SSH in
+as the `deploy` user and run a single script.
 
-### 2.1 Configure your deploy target (one-time)
-
-Edit `scripts/deploy.conf` and set your server's IP or hostname:
+### 2.1 SSH to the server
 
 ```bash
-# scripts/deploy.conf
-DEPLOY_HOST="your-server.com"   # ← replace this
-DEPLOY_USER="deploy"
-DEPLOY_PATH="/srv/legal"
-LOCALES="en_US"
-KEEP_BUILDS=3
-```
-
-Any variable can be overridden per-run without editing the file:
-
-```bash
-LOCALES="en_US uk_UA" ./scripts/deploy.sh
+ssh deploy@uho.kharkiv.ua
 ```
 
 ### 2.2 Run a deploy
 
 ```bash
-# From the project root on your Mac:
-./scripts/deploy.sh
-
-# or via Makefile:
-make deploy
+cd /srv/legal/repo
+./scripts/deploy-server.sh
 ```
 
-The script runs four phases automatically:
+The script runs six steps automatically:
 
 ```
-Phase 1 — Export clean source from git (git archive HEAD)
-Phase 2 — Build inside a linux/amd64 Docker container
-           • composer install --no-dev
-           • module:enable Magento_TwoFactorAuth (re-enable 2FA for prod)
+Step 1 — git pull (latest code from the main branch)
+Step 2 — Export clean source via git archive HEAD → builds/new/
+Step 3 — Build inside a Docker container (no network access to production DB):
+           • composer install --no-dev --optimize-autoloader
+           • module:enable Magento_TwoFactorAuth   (re-enable 2FA for prod)
            • module:disable MarkShust_DisableTwoFactorAuth
            • setup:di:compile
-           • setup:static-content:deploy
-Phase 3 — Create tarball (excludes var/, pub/media/, env.php, auth.json, etc.)
-           Upload via rsync to /srv/legal/incoming/
-Phase 4 — Remote deploy (over SSH):
-           • Extract tarball to builds/new/
-           • Copy shared/env.php into the new build
-           • Run setup:upgrade via docker run (against live DB, new code)
-           • mv builds/current  → builds/archive/<timestamp>-prev
-           • mv builds/new      → builds/current          (atomic)
-           • ln -sfn archive/…  → builds/previous         (for rollback)
-           • docker compose restart php-fpm nginx cron    (clears OPcache)
+Step 4 — Copy shared/env.php into builds/new/app/etc/
+Step 5 — Run against the live DB (connected to the internal Docker network):
+           • setup:upgrade --keep-generated
+           • setup:static-content:deploy (frontend + adminhtml)
+Step 6 — Swap builds and restart:
+           • mv builds/current → builds/archive/<timestamp>-prev
+           • mv builds/new     → builds/current          (atomic)
+           • ln -sfn …        → builds/previous          (for rollback)
+           • docker compose restart php-fpm nginx cron   (clears OPcache)
            • cache:flush
-           • Prune old archives (keep KEEP_BUILDS)
+           • Reload Varnish VCL (hot-reload, no restart)
+           • Prune old archives (keep 3)
 ```
 
 **Why `docker restart` instead of a rolling update?** Docker resolves bind
@@ -349,6 +334,14 @@ mounts at container start time. Changing `builds/current` via `mv` on the host
 does not affect a running container — a restart is required to pick up the new
 mount path. The restart takes 2–3 seconds; Varnish continues to serve cached
 pages during that window.
+
+**Locales:** the script deploys `en_US` by default. To deploy additional
+locales, edit the `LOCALES` variable at the top of `deploy-server.sh` or
+set it inline:
+
+```bash
+LOCALES="en_US uk_UA" ./scripts/deploy-server.sh
+```
 
 ### 2.3 What triggers a deploy
 
@@ -367,20 +360,19 @@ pages during that window.
 
 ## Part 3 — Rollback
 
-If a deploy causes problems, revert to the previous build:
+If a deploy causes problems, revert to the previous build (run on the server):
 
 ```bash
-./scripts/rollback.sh
-
-# or:
-make rollback
+ssh deploy@uho.kharkiv.ua
+cd /srv/legal/repo
+./scripts/rollback-server.sh
 ```
 
 What the rollback script does:
 
 1. Saves the failed build as `builds/rollback-<timestamp>/` (for investigation)
 2. Copies `builds/previous/` back to `builds/current/`
-3. Restarts `php-fpm`, `nginx`, `cron` (new code takes effect)
+3. Restarts `php-fpm`, `nginx`, `cron` (previous code takes effect)
 4. Flushes Magento cache
 
 > **Database caveat:** if the failed deploy ran `setup:upgrade` and applied

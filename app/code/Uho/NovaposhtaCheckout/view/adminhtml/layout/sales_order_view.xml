@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+    <body>
+        <referenceContainer name="order_additional_info">
+            <block class="Uho\NovaposhtaCheckout\Block\Adminhtml\Order\View\NovaposhtaInfo"
+                   name="uho_novaposhta_order_info"
+                   template="Uho_NovaposhtaCheckout::order/view/novaposhta-info.phtml"/>
+        </referenceContainer>
+    </body>
+</page>

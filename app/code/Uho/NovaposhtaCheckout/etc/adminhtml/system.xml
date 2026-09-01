@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_file.xsd">
+    <system>
+        <section id="uho_novaposhta" translate="label" type="text" sortOrder="320"
+                 showInDefault="1" showInWebsite="1" showInStore="1">
+            <class>separator-top</class>
+            <label>Nova Poshta Checkout</label>
+            <tab>sales</tab>
+            <resource>Uho_NovaposhtaCheckout::config</resource>
+            <group id="address" translate="label" type="text" sortOrder="10"
+                   showInDefault="1" showInWebsite="1" showInStore="1">
+                <label>Address Composition</label>
+                <field id="postcode_strategy" translate="label comment" type="select" sortOrder="10"
+                       showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>Postcode Strategy</label>
+                    <source_model>Uho\NovaposhtaCheckout\Model\Config\Source\PostcodeStrategy</source_model>
+                    <comment>Nova Poshta data carries no postcode. This value only satisfies Magento's address validation; it is not a real postal code.</comment>
+                </field>
+                <field id="warehouse_categories" translate="label comment" type="multiselect" sortOrder="20"
+                       showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>Warehouse Categories</label>
+                    <source_model>Uho\NovaposhtaCheckout\Model\Config\Source\WarehouseCategory</source_model>
+                    <comment>Nova Poshta warehouse categories offered at checkout.</comment>
+                </field>
+                <field id="city_search_limit" translate="label comment" type="text" sortOrder="30"
+                       showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>City Search Result Limit</label>
+                    <validate>validate-digits validate-greater-than-zero</validate>
+                    <comment>Maximum number of cities returned by the city search endpoint.</comment>
+                </field>
+                <field id="warehouse_search_limit" translate="label comment" type="text" sortOrder="40"
+                       showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+                    <label>Warehouse Search Result Limit</label>
+                    <validate>validate-digits validate-greater-than-zero</validate>
+                    <comment>Maximum number of warehouses returned by the warehouse list endpoint.</comment>
+                </field>
+            </group>
+        </section>
+    </system>
+</config>

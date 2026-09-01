@@ -1,0 +1,27 @@
+<div class="field required uho-np-field uho-np-city">
+    <label class="label">
+        <span translate="'City'"></span>
+    </label>
+    <div class="control uho-np-typeahead">
+        <input type="text"
+               class="input-text"
+               autocomplete="off"
+               data-bind="
+                   value: query,
+                   valueUpdate: 'input',
+                   attr: { placeholder: $t('Start typing a city name…') },
+                   event: { blur: closeDropdown, focus: openDropdownIfHasSuggestions }
+               "/>
+        <!-- ko if: isLoading -->
+        <span class="uho-np-spinner"></span>
+        <!-- /ko -->
+        <ul class="uho-np-suggestions" data-bind="visible: isOpen() && suggestions().length">
+            <!-- ko foreach: suggestions -->
+            <li data-bind="text: label, click: $parent.selectCity.bind($parent)"></li>
+            <!-- /ko -->
+        </ul>
+        <!-- ko if: isOpen() && !isLoading() && suggestions().length === 0 && query().length >= minQueryLength -->
+        <div class="uho-np-empty" translate="'No cities found'"></div>
+        <!-- /ko -->
+    </div>
+</div>

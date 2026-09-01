@@ -43,3 +43,4 @@ yarn-error.log*
 /.github
 /AGENTS.md
 /CLAUDE.md
+/.php-cs-fixer.cache

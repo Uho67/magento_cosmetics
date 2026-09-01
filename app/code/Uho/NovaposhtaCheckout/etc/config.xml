@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Store:etc/config.xsd">
+    <default>
+        <uho_novaposhta>
+            <address>
+                <postcode_strategy>sentinel</postcode_strategy>
+                <warehouse_categories>Branch,Store,Postomat,DropOff</warehouse_categories>
+                <city_search_limit>20</city_search_limit>
+                <warehouse_search_limit>50</warehouse_search_limit>
+            </address>
+        </uho_novaposhta>
+    </default>
+</config>

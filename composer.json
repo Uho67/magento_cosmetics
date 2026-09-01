@@ -11,13 +11,15 @@
             "dealerdirect/phpcodesniffer-composer-installer": true,
             "laminas/laminas-dependency-plugin": true,
             "magento/*": true,
-            "php-http/discovery": true
+            "php-http/discovery": true,
+            "cweagans/composer-patches": true
         },
         "preferred-install": "dist",
         "sort-packages": true
     },
     "version": "2.4.9",
     "require": {
+        "cweagans/composer-patches": "^2.0",
         "magento/composer": "^1.10.1-beta1",
         "magento/composer-dependency-version-audit-plugin": "~0.1",
         "magento/composer-root-update-plugin": "^2.0.4",
@@ -43,6 +45,7 @@
         "magento/product-community-edition": "2.4.9",
         "magento/sample-data-media": "100.4.*",
         "mageplaza/magento-2-ukrainian-language-pack": "dev-master",
+        "mageplaza/module-cron-schedule": "^4.0",
         "markshust/magento2-module-disabletwofactorauth": "^2.0",
         "perspectiveteam/module-novaposhtacatalog": "*"
     },
@@ -103,6 +106,18 @@
         }
     ],
     "extra": {
-        "magento-force": "override"
+        "magento-force": "override",
+        "patches": {
+            "mageplaza/module-cron-schedule": [
+                {
+                    "description": "Fix PHP 8.4 implicit nullable deprecation in Job::__construct",
+                    "url": "patches/vendor/mageplaza/module-cron-schedule/fix-nullable-resource-php84.patch"
+                },
+                {
+                    "description": "Pass Environment argument to parent cron observer (Magento 2.4.9)",
+                    "url": "patches/vendor/mageplaza/module-cron-schedule/fix-environment-arg-magento249.patch"
+                }
+            ]
+        }
     }
 }

@@ -1,0 +1,291 @@
+//
+//  Сіємо разом — component styling beyond what Luma's variables expose
+//  _____________________________________________
+//
+//  Imported from _theme.less. Palette/typography come from the variables set
+//  there; this file only holds rules that need real selectors (borders,
+//  radii, shadows, spacing) rather than a themeable variable.
+//
+
+//
+//  Headings
+//  ---------------------------------------------
+//
+//  Set directly as CSS rather than through @h1-6__font-family: that variable
+//  is consumed inside .lib-heading() via a double variable-indirection
+//  (@@_font-family) which - verified against the compiled styles-l.css after
+//  a static content deploy - does not pick up a theme override here, so the
+//  variable lever is dead for this specific property chain. This rule wins
+//  on normal cascade order (loaded last) with no !important needed.
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: @font-family-name__display, @font-family__sans-serif;
+    font-weight: @font-weight__bold;
+}
+
+//
+//  Header
+//  ---------------------------------------------
+
+.page-header {
+    border-bottom: 1px solid @border-color__base;
+    background-color: @page__background-color;
+
+    .logo {
+        margin: 18px auto 18px 0;
+
+        img {
+            display: block;
+        }
+    }
+}
+
+.panel.header {
+    background-color: darken(@page__background-color, 3%);
+    border-bottom: 1px solid @border-color__base;
+}
+
+//
+//  Footer
+//  ---------------------------------------------
+
+.page-footer {
+    background-color: @copyright__background-color;
+    border-top: 3px solid @theme__color__primary;
+
+    .footer.content {
+        .links > li {
+            border-bottom: 1px solid darken(@copyright__background-color, 5%);
+        }
+    }
+
+    .copyright {
+        color: @primary__color__lighter;
+        font-size: @font-size__s;
+    }
+}
+
+//
+//  Links
+//  ---------------------------------------------
+
+a,
+.alink {
+    &:hover,
+    &:active {
+        color: darken(@theme__color__primary-alt, 8%);
+    }
+}
+
+//
+//  Buttons
+//  ---------------------------------------------
+
+.action.primary,
+button.action.primary {
+    transition: background-color .15s ease, border-color .15s ease;
+}
+
+//
+//  Forms
+//  ---------------------------------------------
+
+.field {
+    input.input-text,
+    select,
+    textarea {
+        transition: border-color .15s ease;
+
+        &:focus {
+            border-color: @theme__color__primary;
+            box-shadow: 0 0 0 1px @theme__color__primary;
+        }
+    }
+}
+
+//
+//  Category grid & product cards
+//  ---------------------------------------------
+
+.products-grid .product-item,
+.product-items .product-item {
+    .product-item-info {
+        padding: @indent__s;
+        border-radius: 10px;
+        background-color: @color-white;
+        border: 1px solid @border-color__base;
+        transition: box-shadow .2s ease, transform .2s ease;
+
+        &:hover {
+            box-shadow: 0 6px 18px rgba(42, 38, 32, .12);
+            transform: translateY(-2px);
+            border-color: @theme__color__primary;
+        }
+    }
+
+    .product-item-photo {
+        background-color: darken(@page__background-color, 2%);
+        border-radius: 6px;
+    }
+
+    .product-item-name {
+        margin-top: @indent__s;
+
+        a {
+            font-weight: @font-weight__semibold;
+        }
+    }
+
+    .product-item-actions .actions-primary .action.tocart {
+        border-radius: @button__border-radius;
+    }
+}
+
+//  Badges for "нове" / "сезонне" / "розпродаж" — Phase 4 wires real data;
+//  this establishes the visual language now so Phase 4 only adds markup.
+.product-item-info {
+    position: relative;
+
+    .product-labels {
+        position: absolute;
+        top: @indent__s;
+        left: @indent__s;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+
+        .product-label {
+            font-family: @font-family-name__base, @font-family__sans-serif;
+            font-size: 11px;
+            font-weight: @font-weight__bold;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            padding: 3px 8px;
+            border-radius: 20px;
+            background-color: @theme__color__secondary;
+            color: @primary__color;
+
+            &.-sale {
+                background-color: @theme__color__primary-alt;
+                color: @color-white;
+            }
+
+            &.-new {
+                background-color: @theme__color__primary;
+                color: @color-white;
+            }
+
+            //  Not wired to real data yet - no attribute/rule decides
+            //  "seasonal" (see Uho\Catalog\ViewModel\ProductBadges docblock).
+            //  Ready for whichever source of truth gets picked.
+            &.-seasonal {
+                background-color: @theme__color__secondary;
+                color: @primary__color;
+            }
+        }
+    }
+}
+
+//
+//  Stock status
+//  ---------------------------------------------
+
+.stock {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: @font-weight__semibold;
+
+    &.available {
+        color: @theme__color__primary;
+    }
+
+    &.unavailable {
+        color: @primary__color__lighter;
+    }
+}
+
+//
+//  Seed attribute mini-blocks (PDP)
+//  ---------------------------------------------
+//
+//  Renders only once the harvest_days/sowing_depth/sowing_period/
+//  germination_rate/pack_weight attributes exist and are set on a product -
+//  see Uho\Catalog\ViewModel\SeedAttributes. Empty on every product today,
+//  by design.
+
+.seed-attributes {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin: @indent__base 0;
+    padding: @indent__base;
+    border: 1px solid @border-color__base;
+    border-radius: 10px;
+    background: darken(@page__background-color, 2%);
+}
+
+.seed-attributes__item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.seed-attributes__icon {
+    flex: 0 0 auto;
+    width: 24px;
+    height: 24px;
+    color: @theme__color__primary;
+}
+
+.seed-attributes__text {
+    display: flex;
+    flex-direction: column;
+}
+
+.seed-attributes__label {
+    font-size: 12px;
+    color: @primary__color__lighter;
+}
+
+.seed-attributes__value {
+    font-weight: @font-weight__bold;
+    color: @primary__color;
+}
+
+@media (min-width: @screen__m) {
+    .seed-attributes {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (min-width: @screen__l) {
+    .seed-attributes {
+        grid-template-columns: repeat(5, 1fr);
+    }
+}
+
+//
+//  Price display
+//  ---------------------------------------------
+
+.price-box {
+    .price {
+        font-weight: @font-weight__bold;
+        color: @primary__color;
+    }
+
+    .old-price .price {
+        font-weight: @font-weight__regular;
+        color: @primary__color__lighter;
+        text-decoration: line-through;
+    }
+
+    .special-price .price {
+        color: @theme__color__primary-alt;
+    }
+}
+
+.product-info-price .price-box .price {
+    font-size: 24px;
+}

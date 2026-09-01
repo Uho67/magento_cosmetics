@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+
+    <preference for="Uho\NovaposhtaCheckout\Api\CityLocatorInterface"
+                type="Uho\NovaposhtaCheckout\Model\Locator\CityLocator"/>
+    <preference for="Uho\NovaposhtaCheckout\Api\WarehouseLocatorInterface"
+                type="Uho\NovaposhtaCheckout\Model\Locator\WarehouseLocator"/>
+
+    <type name="Magento\Checkout\Block\Onepage">
+        <arguments>
+            <!--
+                Module sequences after Magento_Checkout (etc/module.xml), so this array item is
+                appended after core's own "addressFormAttributes", "totalsSortOrder" and
+                "directoryData" processors and always runs last. See LayoutProcessor docblock.
+            -->
+            <argument name="layoutProcessors" xsi:type="array">
+                <item name="uhoNovaposhtaAddressFields" xsi:type="object">Uho\NovaposhtaCheckout\Block\Checkout\LayoutProcessor</item>
+            </argument>
+        </arguments>
+    </type>
+
+</config>

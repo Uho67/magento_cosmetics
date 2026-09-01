@@ -1,0 +1,48 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Nova Poshta oblast (`settlement_area_description`) -> Magento
+ * `directory_country_region.code`.
+ *
+ * 23 area values are present in perspective_novaposhta_catalog_warehouse.
+ * UA-09 (Luhanska), UA-40 (Sevastopol) and UA-43 (Krym) carry no Nova Poshta
+ * data but are mapped anyway so a future data sync cannot fail closed.
+ */
+-->
+<config xsi:noNamespaceSchemaLocation="urn:magento:module:Uho_NovaposhtaCheckout:etc/np_region_map.xsd"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <areas>
+        <area name="Київська" regionCode="UA-32"/>
+        <area name="Львівська" regionCode="UA-46"/>
+        <area name="Дніпропетровська" regionCode="UA-12"/>
+        <area name="Одеська" regionCode="UA-51"/>
+        <area name="Харківська" regionCode="UA-63"/>
+        <area name="Вінницька" regionCode="UA-05"/>
+        <area name="Полтавська" regionCode="UA-53"/>
+        <area name="Хмельницька" regionCode="UA-68"/>
+        <area name="Черкаська" regionCode="UA-71"/>
+        <area name="Рівненська" regionCode="UA-56"/>
+        <area name="Івано-Франківська" regionCode="UA-26"/>
+        <area name="Тернопільська" regionCode="UA-61"/>
+        <area name="Житомирська" regionCode="UA-18"/>
+        <area name="Волинська" regionCode="UA-07"/>
+        <area name="Миколаївська" regionCode="UA-48"/>
+        <area name="Закарпатська" regionCode="UA-21"/>
+        <area name="Чернігівська" regionCode="UA-74"/>
+        <area name="Запорізька" regionCode="UA-23"/>
+        <area name="Чернівецька" regionCode="UA-77"/>
+        <area name="Кіровоградська" regionCode="UA-35"/>
+        <area name="Сумська" regionCode="UA-59"/>
+        <area name="Донецька" regionCode="UA-14"/>
+        <area name="Херсонська" regionCode="UA-65"/>
+        <area name="Луганська" regionCode="UA-09"/>
+        <area name="Автономна Республіка Крим" regionCode="UA-43"/>
+        <area name="АР Крим" regionCode="UA-43"/>
+        <area name="Севастополь" regionCode="UA-40"/>
+    </areas>
+    <cityOverrides>
+        <!-- Київ: warehouses carry settlement_area_description "Київська", which
+             would otherwise route all 7904 of them to Kyivska oblast (UA-32). -->
+        <cityOverride cityRef="8d5a980d-391c-11dd-90d9-001a92567626" regionCode="UA-30"/>
+    </cityOverrides>
+</config>

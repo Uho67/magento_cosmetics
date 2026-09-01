@@ -1,0 +1,47 @@
+Magento 2.4.9 added a 16th constructor argument, Environment (an alias of
+Laminas\Http\PhpEnvironment\Request), to Magento\Cron\Observer\ProcessCronQueueObserver.
+Mageplaza's subclass still calls parent::__construct() with the pre-2.4.9 15-argument
+signature, which makes setup:di:compile fail with:
+
+    Missed required argument environment in parent::__construct call.
+
+Accept the argument and forward it to the parent.
+
+--- a/Observer/ProcessCronQueueObserver.php
++++ b/Observer/ProcessCronQueueObserver.php
+@@ -24,6 +24,7 @@
+ use DateTime as DateTimeInterface;
+ use DateTimeZone;
+ use Exception;
++use Laminas\Http\PhpEnvironment\Request as Environment;
+ use Magento\Cron\Model\ConfigInterface;
+ use Magento\Cron\Model\DeadlockRetrierInterface;
+ use Magento\Cron\Model\Schedule;
+@@ -81,6 +82,7 @@
+      * @param DeadlockRetrierInterface $retrier
+      * @param TimezoneInterface $localeDate
+      * @param ResolverInterface $localeResolver
++     * @param Environment $environment
+      */
+     public function __construct(
+         ObjectManagerInterface $objectManager,
+@@ -99,7 +101,8 @@
+         ManagerInterface $eventManager,
+         DeadlockRetrierInterface $retrier,
+         TimezoneInterface $localeDate,
+-        ResolverInterface $localeResolver
++        ResolverInterface $localeResolver,
++        Environment $environment
+     ) {
+         $this->localeDate = $localeDate;
+         $this->locale     = $localeResolver->getLocale();
+@@ -118,7 +121,8 @@
+             $statFactory,
+             $lockManager,
+             $eventManager,
+-            $retrier
++            $retrier,
++            $environment
+         );
+     }
+

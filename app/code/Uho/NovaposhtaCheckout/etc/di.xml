@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+
+    <preference for="Uho\NovaposhtaCheckout\Api\AddressComposerInterface"
+                type="Uho\NovaposhtaCheckout\Model\Address\Composer"/>
+    <preference for="Uho\NovaposhtaCheckout\Api\Data\ComposedAddressInterface"
+                type="Uho\NovaposhtaCheckout\Model\Address\ComposedAddress"/>
+
+    <!-- etc/np_region_map.xml: Nova Poshta oblast -> Magento region ISO code (see docs §3.2) -->
+    <type name="Uho\NovaposhtaCheckout\Model\Region\Config\Reader">
+        <arguments>
+            <argument name="fileName" xsi:type="string">np_region_map.xml</argument>
+        </arguments>
+    </type>
+
+    <type name="Uho\NovaposhtaCheckout\Model\Region\RegionMap">
+        <arguments>
+            <argument name="reader" xsi:type="object">Uho\NovaposhtaCheckout\Model\Region\Config\Reader</argument>
+            <argument name="cacheId" xsi:type="string">uho_np_region_map</argument>
+        </arguments>
+    </type>
+
+    <type name="Uho\NovaposhtaCheckout\Model\Address\PostcodeStrategy\StrategyPool">
+        <arguments>
+            <argument name="strategies" xsi:type="array">
+                <item name="sentinel" xsi:type="object">Uho\NovaposhtaCheckout\Model\Address\PostcodeStrategy\SentinelStrategy</item>
+                <item name="oblast_centre" xsi:type="object">Uho\NovaposhtaCheckout\Model\Address\PostcodeStrategy\OblastCentreStrategy</item>
+            </argument>
+        </arguments>
+    </type>
+
+    <!-- §6 B3: background-fill the composed Nova Poshta address before core validates/saves it. -->
+    <type name="Magento\Checkout\Api\ShippingInformationManagementInterface">
+        <plugin name="uho_novaposhta_shipping_information_management"
+                type="Uho\NovaposhtaCheckout\Plugin\Quote\ShippingInformationManagementPlugin"/>
+    </type>
+    <type name="Magento\Quote\Model\ShippingAddressManagementInterface">
+        <plugin name="uho_novaposhta_shipping_address_management"
+                type="Uho\NovaposhtaCheckout\Plugin\Quote\ShippingAddressManagementPlugin"/>
+    </type>
+
+    <!-- §9: prepend city/warehouse to the admin order view, sales_order_print, and confirmation email -->
+    <type name="Magento\Sales\Model\Order\Address\Renderer">
+        <plugin name="uho_novaposhta_order_address_renderer"
+                type="Uho\NovaposhtaCheckout\Plugin\Sales\OrderAddressRendererPlugin"/>
+    </type>
+
+</config>

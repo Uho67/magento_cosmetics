@@ -1,0 +1,27 @@
+{
+    "_hash": "c323a961bfeb35266bc0d194c7a12e0a75cbffdb42b372d6971c9eefb07ee1b4",
+    "patches": {
+        "mageplaza/module-cron-schedule": [
+            {
+                "package": "mageplaza/module-cron-schedule",
+                "description": "Fix PHP 8.4 implicit nullable deprecation in Job::__construct",
+                "url": "patches/vendor/mageplaza/module-cron-schedule/fix-nullable-resource-php84.patch",
+                "sha256": "b33e248832f672bf59de472c788c5740efd7ffb5e39a501cc352fb4a87f951b9",
+                "depth": 1,
+                "extra": {
+                    "provenance": "root"
+                }
+            },
+            {
+                "package": "mageplaza/module-cron-schedule",
+                "description": "Pass Environment argument to parent cron observer (Magento 2.4.9)",
+                "url": "patches/vendor/mageplaza/module-cron-schedule/fix-environment-arg-magento249.patch",
+                "sha256": "16e39d492d595a32e7be27defa2627eb048add01cc22588fa747deb206f5c598",
+                "depth": 1,
+                "extra": {
+                    "provenance": "root"
+                }
+            }
+        ]
+    }
+}
