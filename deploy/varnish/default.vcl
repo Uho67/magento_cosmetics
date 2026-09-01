@@ -119,8 +119,13 @@ sub vcl_backend_response {
         return (deliver);
     }
 
-    # Strip Set-Cookie for cacheable responses (anonymous users), but never for admin/API
-    if (beresp.http.Cache-Control !~ "private" &&
+    # Strip Set-Cookie only for genuinely cacheable public responses (static assets).
+    # Magento's dynamic pages always have no-store/no-cache; stripping their cookies
+    # breaks PHPSESSID delivery and causes the cart to appear empty after add-to-cart.
+    if (!beresp.uncacheable &&
+        beresp.http.Cache-Control !~ "no-store" &&
+        beresp.http.Cache-Control !~ "no-cache" &&
+        beresp.http.Cache-Control !~ "private" &&
         bereq.url !~ "^/d2_Dmin" &&
         bereq.url !~ "^/rest/" &&
         bereq.url !~ "^/graphql") {

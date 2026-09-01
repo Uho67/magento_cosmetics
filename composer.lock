@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "4d135127407ec870ec5f144e62cab63c",
+    "content-hash": "0c424672bfea03c31bb41f47eccd321b",
     "packages": [
         {
             "name": "2tvenom/cborencode",
@@ -20418,6 +20418,64 @@
                 "source": "https://github.com/MyIntervals/emogrifier"
             },
             "time": "2025-11-27T21:56:48+00:00"
+        },
+        {
+            "name": "perspectiveteam/module-novaposhtacatalog",
+            "version": "2.4.10.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/PerspectiveTeam/NovaposhtaCatalog.git",
+                "reference": "8c924fb1163ff85dc612c312b8d0ae3d84c897de"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/PerspectiveTeam/NovaposhtaCatalog/zipball/8c924fb1163ff85dc612c312b8d0ae3d84c897de",
+                "reference": "8c924fb1163ff85dc612c312b8d0ae3d84c897de",
+                "shasum": ""
+            },
+            "require": {
+                "ext-curl": "*",
+                "ext-json": "*",
+                "magento/framework": "*",
+                "magento/module-catalog": "*",
+                "magento/module-checkout": "*",
+                "magento/module-config": "*",
+                "magento/module-customer": "*",
+                "magento/module-developer": "*",
+                "magento/module-eav": "*",
+                "magento/module-payment": "*",
+                "magento/module-quote": "*",
+                "magento/module-sales": "*",
+                "magento/module-store": "*",
+                "php": "~8.2 || ~8.3 || ~8.4"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "*"
+            },
+            "type": "magento2-module",
+            "autoload": {
+                "files": [
+                    "registration.php"
+                ],
+                "psr-4": {
+                    "Perspective\\NovaposhtaCatalog\\": ""
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "MonteShot",
+                    "email": "faqreg@gmail.com"
+                }
+            ],
+            "support": {
+                "issues": "https://github.com/PerspectiveTeam/NovaposhtaCatalog/issues",
+                "source": "https://github.com/PerspectiveTeam/NovaposhtaCatalog/tree/2.4.10.1"
+            },
+            "time": "2026-03-20T14:10:54+00:00"
         },
         {
             "name": "php-amqplib/php-amqplib",
