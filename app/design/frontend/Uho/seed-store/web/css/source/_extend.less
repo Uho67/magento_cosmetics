@@ -43,6 +43,19 @@ h1, h2, h3, h4, h5, h6 {
 .panel.header {
     background-color: darken(@page__background-color, 3%);
     border-bottom: 1px solid @border-color__base;
+
+    // Luma hardcodes this text white (@header-panel__text-color / @color-white),
+    // assuming a dark panel background. Our panel is a light kraft tint, so it
+    // needs a dark color here or the welcome message and account links disappear.
+    .header.links > li > a,
+    .header.links > li.welcome a {
+        color: @primary__color;
+    }
+
+    .header.links > li > a:hover,
+    .header.links > li > a:active {
+        color: @theme__color__primary-alt;
+    }
 }
 
 //

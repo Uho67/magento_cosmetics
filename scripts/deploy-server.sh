@@ -12,7 +12,7 @@ REPO_DIR="$DEPLOY_PATH/repo"
 COMPOSE=(docker compose -f "$REPO_DIR/deploy/docker-compose.prod.yml" --env-file "$DEPLOY_PATH/.env.prod")
 BUILD_IMAGE="wardenenv/php-fpm:8.4-magento2"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-LOCALES="en_US"
+LOCALES="en_US uk_UA"
 
 NEW="$DEPLOY_PATH/builds/new"
 CURRENT="$DEPLOY_PATH/builds/current"
