@@ -70,6 +70,7 @@ class ComposerTest extends TestCase
             'id' => 17222,
             'site_key' => '105',
             'description_ua' => 'Відділення №1: вул. Пирогівський шлях, 135',
+            'short_address_ua' => 'вул. Пирогівський шлях, 135',
             'city_description_ua' => 'Київ',
             'settlement_area_description' => 'Київська',
         ]);
@@ -84,7 +85,11 @@ class ComposerTest extends TestCase
 
         $this->assertSame('UA', $address->getCountryId());
         $this->assertSame('Київ', $address->getCity());
-        $this->assertSame(['Відділення №1: вул. Пирогівський шлях, 135'], $address->getStreet());
+        $this->assertSame(
+            ['вул. Пирогівський шлях, 135'],
+            $address->getStreet(),
+            'street must come from short_address_ua, not the friendlier description_ua framing.'
+        );
         $this->assertSame('Київська', $address->getRegion());
         $this->assertSame(1110, $address->getRegionId());
         $this->assertSame('00000', $address->getPostcode());
@@ -102,6 +107,7 @@ class ComposerTest extends TestCase
             'id' => 40551,
             'site_key' => '108587',
             'description_ua' => 'Поштомат "Нова Пошта" №44666: вул. Білоуська, 4А',
+            'short_address_ua' => 'вул. Білоуська, 4А',
             'city_description_ua' => 'Гайове',
             'settlement_area_description' => 'Чернігівська',
         ]);
@@ -114,7 +120,16 @@ class ComposerTest extends TestCase
         $address = $this->composer->compose(self::VILLAGE_CITY_REF, self::VILLAGE_WAREHOUSE_REF);
 
         $this->assertSame('Гайове', $address->getCity());
-        $this->assertSame(['Поштомат "Нова Пошта" №44666: вул. Білоуська, 4А'], $address->getStreet());
+        $this->assertSame(
+            ['вул. Білоуська, 4А'],
+            $address->getStreet(),
+            'street must come from short_address_ua, not the "Поштомат ..." framing that stays on warehouseName.'
+        );
+        $this->assertSame(
+            'Поштомат "Нова Пошта" №44666: вул. Білоуська, 4А',
+            $address->getWarehouseName(),
+            'warehouseName (used for the admin/email "Відділення" line) keeps the friendlier framing.'
+        );
         $this->assertSame('Чернігівська', $address->getRegion());
         $this->assertSame(1086, $address->getRegionId());
         $this->assertSame('00000', $address->getPostcode());
@@ -144,7 +159,43 @@ class ComposerTest extends TestCase
         $address = $this->composer->compose(self::VILLAGE_CITY_REF, self::VILLAGE_WAREHOUSE_REF);
 
         $this->assertSame('Гайове', $address->getCity());
-        $this->assertSame(['Отделение №5'], $address->getStreet());
+        $this->assertSame(
+            ['вул. Коротка, 5'],
+            $address->getStreet(),
+            'street reads short_address_ua directly and has no fallback chain of its own.'
+        );
+        $this->assertSame(
+            'Отделение №5',
+            $address->getWarehouseName(),
+            'warehouseName still falls back description_ua -> description_ru -> short_address_ua.'
+        );
+    }
+
+    public function testStreetIsEmptyWhenShortAddressUaIsBlankEvenIfWarehouseNameFallsBack(): void
+    {
+        $this->givenCity(self::VILLAGE_CITY_REF, 9001, 'Гайове');
+        $this->givenWarehouse([
+            'id' => 5,
+            'site_key' => '1',
+            'description_ua' => '',
+            'description_ru' => 'Отделение №5',
+            'short_address_ua' => '',
+            'city_description_ua' => 'Гайове',
+            'settlement_area_description' => 'Сумська',
+        ]);
+
+        $this->regionResolver->method('resolveRegionCode')->willReturn('UA-59');
+        $this->regionResolver->method('resolveRegionId')->willReturn(1102);
+
+        $address = $this->composer->compose(self::VILLAGE_CITY_REF, self::VILLAGE_WAREHOUSE_REF);
+
+        $this->assertSame(
+            [''],
+            $address->getStreet(),
+            'street has no fallback chain, so a blank short_address_ua yields an empty street entry '
+                . 'rather than falling back to description_ua/description_ru.'
+        );
+        $this->assertSame('Отделение №5', $address->getWarehouseName());
     }
 
     public function testAnUnmappedAreaRejectsTheSelection(): void

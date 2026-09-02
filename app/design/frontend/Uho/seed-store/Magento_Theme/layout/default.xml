@@ -20,5 +20,6 @@
                 <argument name="logo_alt" xsi:type="string">Сіємо разом</argument>
             </arguments>
         </referenceBlock>
+        <referenceBlock name="copyright" remove="true"/>
     </body>
 </page>

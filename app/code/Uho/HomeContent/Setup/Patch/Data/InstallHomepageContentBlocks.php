@@ -17,9 +17,11 @@ use Magento\Store\Model\Store;
  * Content > Blocks without a deploy - see docs/BRAND_GUIDE.md for tone of
  * voice notes.
  *
- * Category tile / CTA links point at the store root ({{store url=''}}) as a
- * safe placeholder until Phase 4 creates the real vegetable/flower/greens
- * categories - update the hrefs in Content > Blocks once those exist.
+ * The hero CTA link points at the store root ({{store url=''}}) as a safe
+ * placeholder until a real "shop all" landing page exists - update it in
+ * Content > Blocks once one does. The featured-categories tiles are no
+ * longer seeded here: home.categories now renders live level-2 categories
+ * via Uho\HomeContent\Block\FeaturedCategories instead of CMS content.
  */
 class InstallHomepageContentBlocks implements DataPatchInterface
 {
@@ -68,24 +70,6 @@ class InstallHomepageContentBlocks implements DataPatchInterface
                         <p class="home-hero__subtitle">Насіння овочів, квітів і зелені — з гарантією схожості, для кожного сезону.</p>
                         <a class="home-hero__cta action primary" href="{{store url=''}}">Обрати насіння</a>
                     </div>
-                    HTML,
-            ],
-            [
-                'identifier' => 'home_featured_categories',
-                'title' => 'Головна — популярні категорії',
-                'content' => <<<HTML
-                    <a class="home-categories__tile" href="{{store url=''}}">
-                        <span class="home-categories__title">Насіння овочів</span>
-                        <span class="home-categories__desc">Томати, огірки, перець, буряк та інша городина</span>
-                    </a>
-                    <a class="home-categories__tile" href="{{store url=''}}">
-                        <span class="home-categories__title">Насіння квітів</span>
-                        <span class="home-categories__desc">Однорічні та багаторічні квіти для клумби й балкона</span>
-                    </a>
-                    <a class="home-categories__tile" href="{{store url=''}}">
-                        <span class="home-categories__title">Насіння зелені</span>
-                        <span class="home-categories__desc">Кріп, петрушка, базилік, салат та пряні трави</span>
-                    </a>
                     HTML,
             ],
             [

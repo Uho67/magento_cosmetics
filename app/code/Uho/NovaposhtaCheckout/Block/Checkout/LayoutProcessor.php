@@ -139,6 +139,15 @@ class LayoutProcessor implements LayoutProcessorInterface
 
             $fieldset[$field]['visible'] = false;
             unset($fieldset[$field]['validation']['required-entry']);
+            unset($fieldset[$field]['config']['customEntry']);
+
+            if (isset($fieldset[$field]['children']) && is_array($fieldset[$field]['children'])) {
+                foreach ($fieldset[$field]['children'] as $childKey => $child) {
+                    if (is_array($child)) {
+                        $fieldset[$field]['children'][$childKey]['visible'] = false;
+                    }
+                }
+            }
         }
 
         return $fieldset;

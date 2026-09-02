@@ -19,7 +19,10 @@
 #   3. Import the downloaded dump via `warden db import`.
 #   4. Rewrite every base_url / base_link_url row in core_config_data to
 #      https://legal.test/ (all scopes — default, website, store view).
-#   5. setup:upgrade, cache:flush, indexer:reindex.
+#   5. Enable "Add Store Code to Urls" (web/url/use_store), so individual
+#      store views are reachable locally as https://legal.test/<store_code>/
+#      (e.g. /pr_ua/) — production dumps come in with this off.
+#   6. setup:upgrade, cache:flush, indexer:reindex.
 
 set -euo pipefail
 IFS=$'\n\t'
@@ -124,8 +127,18 @@ warden db connect -e "
 "
 ok "Base URLs updated (all scopes)"
 
-# ── Step 5: Bring the app up to date with the imported data ──────────────────
-step "Step 5/5 — setup:upgrade, cache:flush, indexer:reindex"
+# ── Step 5: Enable store codes in URLs (default scope, applies to all stores) ─
+step "Step 5/6 — Enabling 'Add Store Code to Urls' (web/url/use_store)"
+
+warden db connect -e "
+  INSERT INTO core_config_data (scope, scope_id, path, value)
+  VALUES ('default', 0, 'web/url/use_store', '1')
+  ON DUPLICATE KEY UPDATE value = '1';
+"
+ok "Store views reachable locally, e.g. https://legal.test/pr_ua/"
+
+# ── Step 6: Bring the app up to date with the imported data ──────────────────
+step "Step 6/6 — setup:upgrade, cache:flush, indexer:reindex"
 
 warden env exec -T php-fpm bin/magento setup:upgrade --keep-generated
 warden env exec -T php-fpm bin/magento cache:flush

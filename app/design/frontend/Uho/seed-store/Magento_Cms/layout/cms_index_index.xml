@@ -5,12 +5,24 @@
     the store-root request itself, not for viewing that CMS page by its own
     URL key) - see docs/BRAND_GUIDE.md for the content/tone this wires up.
 
-    Content is CMS-block driven (Content > Blocks, identifiers below) so
-    copy/links/images can change without a deploy; this file only owns
-    section order and the responsive wrapper markup/CSS.
+    Hero, trust-badges and newsletter content is CMS-block driven
+    (Content > Blocks, identifiers below) so copy/links/images can change
+    without a deploy. home.categories is the exception: it renders the
+    store's real level-2 category tree (Uho\HomeContent\Block\FeaturedCategories)
+    instead of CMS content, so its cards always match the live catalog.
+    This file otherwise only owns section order and the responsive wrapper
+    markup/CSS.
 -->
 <page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
     <body>
+        <!--
+            Homepage-only: the site's normal top nav (category menu + mobile
+            account/settings drawer) is dropped in favor of the
+            home-categories cards below, which link straight to the real
+            level-2 category tree. Every other page keeps navigation.sections
+            untouched.
+        -->
+        <referenceBlock name="navigation.sections" remove="true"/>
         <referenceContainer name="content">
             <block class="Magento\Framework\View\Element\Template" name="home.hero" template="Uho_HomeContent::home/hero.phtml" after="-">
                 <block class="Magento\Cms\Block\Block" name="home.hero.content" as="content">
@@ -19,13 +31,7 @@
                     </arguments>
                 </block>
             </block>
-            <block class="Magento\Framework\View\Element\Template" name="home.categories" template="Uho_HomeContent::home/featured-categories.phtml" after="home.hero">
-                <block class="Magento\Cms\Block\Block" name="home.categories.content" as="content">
-                    <arguments>
-                        <argument name="block_id" xsi:type="string">home_featured_categories</argument>
-                    </arguments>
-                </block>
-            </block>
+            <block class="Uho\HomeContent\Block\FeaturedCategories" name="home.categories" template="Uho_HomeContent::home/featured-categories.phtml" after="home.hero"/>
             <block class="Magento\Framework\View\Element\Template" name="home.trust" template="Uho_HomeContent::home/trust-badges.phtml" after="home.categories">
                 <block class="Magento\Cms\Block\Block" name="home.trust.content" as="content">
                     <arguments>

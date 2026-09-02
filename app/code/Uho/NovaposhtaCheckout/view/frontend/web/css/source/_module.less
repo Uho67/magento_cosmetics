@@ -14,6 +14,17 @@
     display: none;
 }
 
+//
+// §2.1: the street group's own <legend> renders unconditionally regardless of any child's
+// visibility state, so hiding the group's children in JS still leaves the label behind — needs
+// this CSS rule instead.
+//
+.checkout-index-index {
+    .fieldset .field.street {
+        display: none;
+    }
+}
+
 .uho-np-shipping-method {
     padding: 10px 0;
 

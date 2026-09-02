@@ -95,10 +95,12 @@ class Composer implements AddressComposerInterface
             );
         }
 
+        $street = trim((string) $warehouse->getData(WarehouseInterface::SHORT_ADDRESS_UA));
+
         return $this->composedAddressFactory->create([
             'countryId' => self::COUNTRY_ID,
             'city' => $cityName,
-            'street' => [$warehouseName],
+            'street' => [$street],
             'region' => $area,
             'regionId' => $regionId,
             'postcode' => $postcode,

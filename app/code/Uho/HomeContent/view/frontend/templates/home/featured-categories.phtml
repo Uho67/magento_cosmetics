@@ -1,9 +1,17 @@
 <?php
-/** @var \Magento\Framework\View\Element\Template $block */
+/** @var \Uho\HomeContent\Block\FeaturedCategories $block */
 ?>
 <section class="home-categories">
     <h2 class="home-categories__heading"><?= $block->escapeHtml(__('Оберіть свою категорію')) ?></h2>
     <div class="home-categories__grid">
-        <?= /* @noEscape */ $block->getChildHtml('content') ?>
+        <?php foreach ($block->getCategories() as $category): ?>
+            <a class="home-categories__tile" href="<?= $block->escapeUrl($block->getCategoryUrl($category)) ?>">
+                <span class="home-categories__title"><?= $block->escapeHtml($category->getName()) ?></span>
+                <?php $description = $block->getCategoryDescription($category); ?>
+                <?php if ($description !== ''): ?>
+                    <span class="home-categories__desc"><?= $block->escapeHtml($description) ?></span>
+                <?php endif; ?>
+            </a>
+        <?php endforeach; ?>
     </div>
 </section>
